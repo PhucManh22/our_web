@@ -136,7 +136,7 @@ const noteText = document.getElementById("noteText");
 const notesList = document.getElementById("notesList");
 
 const NOTES_API_BASE = "https://fast-api-backend.fly.dev/notes";
-const NOTES_READ_PASSWORD = "220403"; // TODO: đổi mật khẩu tuỳ ý
+const NOTES_READ_PASSWORD = "yeuThaonhatnha"; // TODO: đổi mật khẩu tuỳ ý
 
 // ===== Preview ảnh =====
 const imagePreviewModal = document.getElementById("imagePreviewModal");
