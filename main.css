@@ -40,18 +40,153 @@ button:hover {
     transform: scale(1.05);
 }
 
+/* Note Button */
+.note-btn {
+    position: fixed;
+    right: 30px;
+    bottom: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    padding: 0;
+    font-size: 24px;
+    box-shadow: 0 4px 12px rgba(255, 77, 109, 0.4);
+    z-index: 100;
+}
+
+.note-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(255, 77, 109, 0.6);
+}
+
 #message {
     display: none;
     margin-top: 80px;
 }
 
-.fade {
-    animation: fadeIn 1.5s;
+#message.show {
+    display: block;
 }
 
-@keyframes fadeIn {
-    0% {opacity: 0;}
-    100% {opacity: 1;}
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    animation: fadeIn 0.3s;
+}
+
+.modal-content {
+    background-color: #fff5f7;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 20px;
+}
+
+.close:hover,
+.close:focus {
+    color: #ff4d6d;
+}
+
+.modal-content h2 {
+    color: #d6336c;
+    margin-top: 0;
+    text-shadow: none;
+}
+
+#noteText {
+    width: 100%;
+    height: 180px;
+    padding: 12px;
+    border: 2px solid #ff4d6d;
+    border-radius: 10px;
+    font-family: "Poppins", sans-serif;
+    font-size: 16px;
+    resize: none;
+    box-sizing: border-box;
+    margin: 15px 0;
+}
+
+#noteText:focus {
+    outline: none;
+    border-color: #c9184a;
+    box-shadow: 0 0 10px rgba(255, 77, 109, 0.3);
+}
+
+.save-btn {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #ff4d6d, #d6336c);
+    font-weight: bold;
+}
+
+.save-btn:hover {
+    transform: scale(1.02);
+}
+
+.notes-list {
+    text-align: left;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.note-item {
+    background: #ffe6eb;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border-left: 4px solid #ff4d6d;
+    position: relative;
+    word-wrap: break-word;
+}
+
+.note-item time {
+    display: block;
+    font-size: 12px;
+    color: #999;
+    margin-top: 8px;
+}
+
+.delete-note {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    background: #ff4d6d;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-note:hover {
+    background: #c9184a;
 }
 
 /* Hearts */
@@ -131,7 +266,8 @@ button:hover {
     height: 100%;
     object-fit: cover;
     display: block;
-    image-rendering: crisp-edges;
+    image-rendering: auto;
+    cursor: zoom-in;
 }
 
 @keyframes scroll-reel {
@@ -140,5 +276,66 @@ button:hover {
     }
     100% {
         transform: translateX(calc(-100% - 8px));
+    }
+}
+
+/* Image preview modal */
+.image-preview-content {
+    position: relative;
+    width: auto;
+    max-width: 95vw;
+    background-color: transparent;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.image-preview-content img {
+    width: auto;
+    height: auto;
+    max-width: 95vw;
+    max-height: 90vh;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.close-image {
+    align-self: flex-end;
+    color: #fff;
+    font-size: 28px;
+    cursor: pointer;
+    margin-bottom: 4px;
+}
+
+.download-btn {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    text-decoration: none;
+    font-size: 16px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.download-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.7);
+}
+
+@media (max-width: 600px) {
+    .image-preview-content {
+        width: 95vw;
+    }
+
+    .image-preview-content img {
+        max-height: 80vh;
     }
 }

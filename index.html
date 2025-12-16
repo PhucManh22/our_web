@@ -4,8 +4,32 @@
 <meta charset="UTF-8">
 <title>Love Website</title>
 <link rel="stylesheet" href="main.css">
+
 </head>
 <body>
+
+<!-- Nút ghi chú ở góc phải -->
+<button id="noteBtn" class="note-btn">💌 Love</button>
+
+<!-- Popup ghi chú (viết) -->
+<div id="noteModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Viết ghi chú yêu thương 💕</h2>
+        <textarea id="noteText" placeholder="Viết những lời yêu thương ở đây..."></textarea>
+        <button id="saveBtn" class="save-btn">Gửi</button>
+        <button id="loadBtn" class="save-btn" style="margin-top:8px;">🔐 Đọc ghi chú</button>
+    </div>
+</div>
+
+<!-- Popup ghi chú (xem lại) -->
+<div id="notesViewModal" class="modal">
+    <div class="modal-content">
+        <span class="close-notes">&times;</span>
+        <h2>Nhật ký yêu thương 💌</h2>
+        <div id="notesList" class="notes-list"></div>
+    </div>
+</div>
 
 <div class="container" id="startScreen">
     <h1>Gửi em ❤️</h1>
@@ -13,8 +37,8 @@
     <button onclick="startLove()">Bắt đầu</button>
 </div>
 
-<div id="message"> 
-    <audio id="music" src="sound/kho_báu.mp3" autoplay loop playsinline></audio>
+<div id="message">
+    <audio id="music" src="sound/treaser.mp3" loop playsinline></audio>
     <h1 class="fade">❤️</h1>
     <h2 class="fade">Love you</h2>
     <h2 class="fade">Chúc chúng ta mãi hạnh phúc 💕</h2>
@@ -26,6 +50,15 @@
             <div class="reel-track"></div>
         </div>
     </div>
+
+<!-- Popup xem ảnh kỷ niệm -->
+<div id="imagePreviewModal" class="modal">
+    <div class="modal-content image-preview-content">
+        <span class="close-image">&times;</span>
+        <img id="previewImage" src="" alt="Memory preview">
+        <a id="downloadImage" class="download-btn" href="#" download>⬇️ Tải</a>
+    </div>
+</div>
 </div>
 
 <script src="main.js"></script>
