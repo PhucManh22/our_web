@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chúng mình</title>
+  <meta name="description" content="Nơi hai vợ chồng lưu giữ kỷ niệm.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#b8405a">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top">Chúng mình</a>
+    <nav aria-label="Điều hướng">
+      <a href="#photos">Ảnh</a>
+      <a href="#notes">Thư nhỏ</a>
+      <button id="musicBtn" class="icon-btn" type="button" aria-pressed="false" aria-label="Bật nhạc">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+      </button>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" id="hero">
+      <div class="hero-inner">
+        <p class="eyebrow">Đã bên nhau</p>
+        <p class="days"><span id="daysNum">—</span><span class="days-unit">ngày</span></p>
+        <p class="breakdown" id="breakdown" aria-live="off"></p>
+      </div>
+      <a class="scroll-hint" href="#photos" aria-label="Xuống xem ảnh">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+      </a>
+    </section>
+
+    <section class="section" id="photos" aria-labelledby="photosTitle">
+      <div class="section-head">
+        <h2 id="photosTitle">Kỷ niệm</h2>
+        <p class="muted" id="photoCount"></p>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Lọc theo album"></div>
+      <div class="grid" id="grid"></div>
+      <div id="sentinel" aria-hidden="true"></div>
+      <p class="muted center" id="photoError" hidden></p>
+    </section>
+
+    <section class="section narrow" id="notes" aria-labelledby="notesTitle">
+      <div class="section-head">
+        <h2 id="notesTitle">Thư nhỏ</h2>
+      </div>
+
+      <form id="lockForm" class="card" autocomplete="off">
+        <p class="muted">Chỉ hai đứa mình đọc được. Nhập mật khẩu để mở.</p>
+        <div class="row">
+          <input id="passInput" type="password" placeholder="Mật khẩu" aria-label="Mật khẩu" required>
+          <button class="btn" type="submit">Mở</button>
+        </div>
+        <p class="error" id="lockError" role="alert" hidden></p>
+      </form>
+
+      <div id="notesPanel" hidden>
+        <form id="noteForm" class="card">
+          <div class="seg" role="radiogroup" aria-label="Người viết">
+            <label><input type="radio" name="author" value="anh"><span>Anh</span></label>
+            <label><input type="radio" name="author" value="em"><span>Em</span></label>
+          </div>
+          <textarea id="noteText" rows="3" maxlength="2000" placeholder="Viết gì đó cho nhau…" aria-label="Nội dung ghi chú" required></textarea>
+          <div class="row end">
+            <span class="muted small" id="noteHint">Ctrl + Enter để gửi</span>
+            <button class="btn" type="submit" id="noteSend">Gửi</button>
+          </div>
+          <p class="error" id="noteError" role="alert" hidden></p>
+        </form>
+        <ul class="notes" id="notesList"></ul>
+        <p class="muted center" id="notesEmpty" hidden>Chưa có thư nào. Viết cái đầu tiên nhé.</p>
+        <p class="center"><button class="link" id="lockBtn" type="button">Khoá lại</button></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer muted small center">Làm bằng tình yêu · <span id="year"></span></footer>
+
+  <dialog id="lightbox" aria-label="Xem ảnh">
+    <figure>
+      <img id="lbImg" alt="">
+      <figcaption>
+        <span id="lbCaption"></span>
+        <span class="lb-actions">
+          <span id="lbCount" class="muted small"></span>
+          <a id="lbOriginal" href="#" target="_blank" rel="noopener">Ảnh gốc</a>
+        </span>
+      </figcaption>
+    </figure>
+    <button class="lb-btn lb-close" id="lbClose" type="button" aria-label="Đóng">✕</button>
+    <button class="lb-btn lb-prev" id="lbPrev" type="button" aria-label="Ảnh trước">‹</button>
+    <button class="lb-btn lb-next" id="lbNext" type="button" aria-label="Ảnh sau">›</button>
+  </dialog>
+
+  <audio id="music" preload="none" loop></audio>
+  <script src="config.js"></script>
+  <script src="app.js" type="module"></script>
+</body>
+</html>

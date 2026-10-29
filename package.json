@@ -1,6 +1,19 @@
 {
-  "name": "do_for_love",
-  "version": "1.0.0",
-  "dependencies": {}
+  "name": "our-web",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "photos:optimize": "node scripts/optimize-photos.mjs",
+    "photos:upload": "node scripts/upload-photos.mjs",
+    "dev": "node scripts/dev.mjs",
+    "db:migrate:local": "wrangler d1 migrations apply our-web-db --local",
+    "db:migrate": "wrangler d1 migrations apply our-web-db --remote",
+    "deploy": "wrangler pages deploy public --project-name our-web"
+  },
+  "devDependencies": {
+    "exifr": "^7.1.3",
+    "sharp": "^0.34.0",
+    "wrangler": "^4.0.0"
+  }
 }
-

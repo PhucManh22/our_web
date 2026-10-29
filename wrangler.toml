@@ -1,0 +1,9 @@
+name = "our-web"
+pages_build_output_dir = "public"
+compatibility_date = "2025-10-01"
+
+# D1 lưu ghi chú. database_id lấy từ: npx wrangler d1 create our-web-db
+[[d1_databases]]
+binding = "DB"
+database_name = "our-web-db"
+database_id = "5e556608-5929-43e6-832b-e5a3f7773885"
