@@ -178,3 +178,41 @@ pub-…r2.dev                     ảnh/nhạc (R2, bucket our-web-media)
 * Mật khẩu/secret không nằm trong code client. Render nội dung người dùng bằng `textContent`, không `innerHTML`.
 * HEIC: chuyển sang JPEG ngay trên trình duyệt (`public/vendor/heic2any`, tải lười); chuyển từng file một vì thư viện không an toàn khi gọi song song.
 * Dev local: `npm run db:migrate:local` → `npm run dev` (web `:8788`, media `:8790`); ảnh upload khi dev nằm trong R2 giả lập nên không hiện trên media server local.
+
+---
+
+## 9. NHẬT KÝ CÔNG VIỆC
+
+### 2026-10-29 — Làm lại toàn bộ project (ảnh lên cloud, giao diện mới, backend Cloudflare)
+
+**Bối cảnh ban đầu:** repo là web tĩnh, 423 ảnh (1,2 GB) nằm trong git → clone rất chậm; ghi chú gọi `fast-api-backend.fly.dev`; mật khẩu đọc ghi chú hardcode trong `main.js`; ghi chú render bằng `innerHTML` (XSS).
+
+**Đã làm (theo thứ tự):**
+1. **Tối ưu ảnh** (`scripts/optimize-photos.mjs`, sharp): 1.146 MB → 69 MB (thumb 480px + full 1600px WebP). Ngày chụp lấy từ EXIF; ảnh `CIMG*` mang ngày 2015 (đồng hồ máy ảnh sai) bị coi là không có ngày; đọc thêm ngày từ tên file `Locket_<epoch>`.
+2. **Cloudflare:** bucket R2 `our-web-media` (public qua r2.dev), D1 `our-web-db`, project Pages `our-web`. Upload 1.271 file lên R2 (`scripts/upload-photos.mjs`, chạy lại được, có log `.build/uploaded.json`). Đã đối chiếu 423/423 ảnh gốc trên R2 đúng dung lượng rồi mới xoá ảnh gốc ở máy (`img_love/TX_0612`).
+3. **Giao diện mới** (tối giản, dark mode): hero đếm ngày bên nhau, masonry, lightbox (phím/vuốt), nhạc nền, ghi chú. Ghi chú chuyển sang Pages Function + D1, mật khẩu kiểm tra ở server (`NOTES_PASSCODE`, so sánh hằng thời gian), render bằng `textContent`. **Mật khẩu ghi chú giữ nguyên mật khẩu cũ theo ý chủ repo** (đã lộ trong lịch sử git công khai).
+4. **GitHub Pages** (`phucmanh22.github.io/our_web/`) vẫn là nơi phục vụ giao diện → deploy bằng Actions từ thư mục `public/`; API ở `our-web.pages.dev` bật CORS theo allowlist origin. Workflow gắn mã commit vào URL css/js (`?v=<sha>`) để chống cache cũ.
+5. **Màn khoá đăng nhập** (`/api/auth`): mật khẩu băm PBKDF2 lưu trong **D1** (không để ở R2 vì bucket public), token HMAC 30 ngày gắn với bản băm (đổi mật khẩu ⇒ phiên cũ mất hiệu lực), đổi mật khẩu ngay trên web. Mật khẩu đầu tiên cài bằng `npm run auth:set` (tránh người vào trước chiếm quyền).
+6. **Đổi nhạc** sang *Come My Way (softer version)* (`audio/come-my-way-softer.mp3`); tên bài nằm ở `config.js` (`music`).
+7. **Bố cục theo tháng** + **upload ảnh từ giao diện** (`/api/photos`): trình duyệt resize WebP, gửi thumb/full/original lên R2, metadata vào D1; **ngày ảnh = ngày upload**; server kiểm tra magic bytes (chỉ JPEG/PNG/WebP), giới hạn dung lượng. 423 ảnh cũ gán `defaultDate` = 2025-12-01 ⇒ gom hết vào *Tháng 12/2025*.
+8. **HEIC (iPhone):** chuyển JPEG trên trình duyệt bằng `heic2any@0.0.4` (vendor, tải lười). Bắt được lỗi thật khi test: thư viện kẹt nếu gọi song song → chuyển từng file + timeout 60 s.
+9. **Xoá ảnh:** chế độ "Chọn ảnh" xoá hàng loạt (cả ảnh cũ, qua bảng `deleted_photos`); thông báo upload thành công tự ẩn sau 3 giây, có lỗi thì giữ lại.
+
+**Trạng thái cuối ngày:** mọi thứ đã push (`origin/main`) và deploy; chủ repo đã cài mật khẩu đăng nhập, đã tự upload thử ảnh trên bản thật (hoạt động). Ghi chú thật trên D1 có ít nhất 1 ghi chú.
+
+**Việc còn mở:**
+* ⬜ **Viết lại lịch sử git** để bỏ ảnh/nhạc cũ (`git filter-repo --path img_love --path sound --invert-paths`, rồi force-push). Chủ repo đã chọn làm nhưng **chưa thực hiện**; cần backup mirror trước, xác nhận lại trước khi force-push. Sau bước này R2 là bản duy nhất của ảnh gốc ⇒ nên tự sao lưu ra ổ ngoài/Google Photos.
+* ⬜ Ghi chú cũ trên `fly.dev` chưa lấy được (server lỗi SSL, có thể đã tắt) — bảng `notes` bắt đầu từ trống.
+* ⬜ HEIC mới chỉ test với file tạo bằng ImageMagick, **chưa thử ảnh HEIC thật từ iPhone** (ảnh HDR/Live Photo có thể không chuyển được). Cách chắc nhất: iPhone → Cài đặt → Camera → Định dạng → Tương thích nhất.
+* ⬜ Khoá thật cho ảnh (R2 private + phục vụ qua Function, repo private) chưa làm — hiện màn khoá chỉ chặn giao diện.
+* ⬜ Backup ghi chú định kỳ: `npx wrangler d1 export our-web-db --remote --output=notes-backup.sql` (đừng commit file này). Nên đặt cảnh báo chi phí R2 trong Cloudflare Billing.
+* ⬜ File `treaser.mp3` cũ (7 MB) vẫn nằm trên R2, web không dùng nữa — xoá khi muốn gọn.
+* ⬜ Đổi mật khẩu ghi chú về mật khẩu bí mật (hiện đang dùng mật khẩu đã lộ trong lịch sử git).
+
+**Lưu ý vận hành / bài học:**
+* `npm run photos:optimize` cần ảnh gốc ở `img_love/TX_0612` — **thư mục này đã xoá**. Ảnh gốc nằm ở R2 `original/<tên file>`; muốn chạy lại cho ảnh cũ phải tải về trước. Ảnh mới thêm qua web thì không cần script này.
+* Lệnh cần nhập tương tác (`npm run auth:set`) phải chạy trong **terminal thật**, không chạy được qua `!` của Claude Code (script đã báo lỗi rõ).
+* Sửa `functions/` hoặc `migrations/` ⇒ phải `npm run db:migrate` (nếu có migration) và `npm run deploy`; sửa `public/` ⇒ chỉ cần push (Actions lo).
+* Khi dev local, ảnh upload nằm trong R2 giả lập nên không hiện trên media server `:8790`; DB local tách hẳn D1 thật (mật khẩu local khác).
+* Lệnh `pkill -f "<mẫu>"` có thể khớp luôn tiến trình shell đang chạy chính lệnh đó — kill theo PID (`ss -ltnp`) an toàn hơn.
+* Thao tác ghi (sửa file, commit, push): chủ repo đã từng từ chối một lệnh nhưng nó vẫn chạy xong → luôn báo trước, và kiểm tra `git log` thay vì giả định khi nghi ngờ.
