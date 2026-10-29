@@ -5,6 +5,11 @@ import readline from 'node:readline';
 import { spawnSync } from 'node:child_process';
 import { hashPassword } from '../functions/_shared/auth.js';
 
+if (!process.stdin.isTTY) {
+  console.error('Cần chạy trong terminal thật (có bàn phím tương tác) để nhập mật khẩu ẩn.\nMở terminal, cd vào thư mục project rồi chạy: npm run auth:set');
+  process.exit(1);
+}
+
 const target = process.argv.includes('--local') ? '--local' : '--remote';
 
 function ask(question) {
