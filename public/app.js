@@ -66,7 +66,7 @@ async function loadPhotos() {
     const overrides = meta.photos ?? {};
     const statics = manifest.photos.map((p) => {
       const o = overrides[p.id] ?? {};
-      return { ...p, taken: o.date ?? p.taken, caption: o.caption ?? '' };
+      return { ...p, taken: o.date ?? p.taken ?? meta.defaultDate ?? null, caption: o.caption ?? '' };
     });
     photoState.all = [...statics, ...uploaded];
     render();
@@ -173,7 +173,7 @@ const canvasBlob = (canvas, quality) =>
 // Resize ngay trên trình duyệt: không cần dịch vụ xử lý ảnh phía server.
 async function prepareImage(file) {
   const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => {
-    throw new Error('Không đọc được ảnh (HEIC chưa hỗ trợ — hãy dùng JPEG/PNG)');
+    throw new Error('Không đọc được ảnh — hãy thử JPEG/PNG');
   });
   try {
     const draw = (w, h) => {
@@ -195,7 +195,35 @@ async function prepareImage(file) {
   } finally { bmp.close(); }
 }
 
-async function uploadFile(file) {
+// iPhone: Safari thường tự đổi HEIC → JPEG khi chọn ảnh; nếu file vẫn là HEIC (Chrome/Firefox, file chép từ máy) thì chuyển ngay trên trình duyệt.
+const isHeic = (f) => /^image\/hei[cf]/i.test(f.type) || /\.(heic|heif)$/i.test(f.name);
+let heicLoader;
+const loadHeic = () => (heicLoader ??= new Promise((resolve, reject) => {
+  const s = document.createElement('script');
+  s.src = 'vendor/heic2any.min.js'; // chỉ tải (~1,3 MB) khi thật sự có ảnh HEIC
+  s.onload = () => resolve(window.heic2any);
+  s.onerror = () => { heicLoader = null; reject(new Error('Không tải được bộ chuyển HEIC')); };
+  document.head.append(s);
+}));
+// heic2any dùng một bộ giải mã chung, gọi song song là kẹt → xếp hàng từng file; quá 60 giây thì báo lỗi thay vì treo.
+let heicQueue = Promise.resolve();
+async function convertHeic(file) {
+  const heic2any = await loadHeic();
+  const task = heicQueue.then(() =>
+    Promise.race([
+      heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
+    ])
+  );
+  heicQueue = task.catch(() => {}); // lỗi của file này không chặn các file sau
+  let out;
+  try { out = await task; }
+  catch { throw new Error('Không chuyển được HEIC này — hãy xuất sang JPEG rồi thử lại'); }
+  return new File([Array.isArray(out) ? out[0] : out], file.name.replace(/\.(heic|heif)$/i, '') + '.jpg', { type: 'image/jpeg' });
+}
+
+async function uploadFile(file, onStatus = () => {}) {
+  if (isHeic(file)) { onStatus('Đang chuyển HEIC…'); file = await convertHeic(file); onStatus('Đang tải…'); }
   if (file.size > MAX_ORIGINAL) throw new Error('Ảnh quá lớn (tối đa 20 MB)');
   const { thumb, full, meta } = await prepareImage(file);
   const form = new FormData();
@@ -211,7 +239,7 @@ async function uploadFile(file) {
 }
 
 async function handleFiles(files) {
-  const list = [...files].filter((f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic)$/i.test(f.name));
+  const list = [...files].filter((f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name));
   if (!list.length) return;
   const panel = $('uploadPanel'), ul = $('uploadList');
   panel.hidden = false; ul.replaceChildren();
@@ -230,7 +258,7 @@ async function handleFiles(files) {
       const i = next++;
       rows[i].textContent = 'Đang tải…';
       try {
-        photoState.all.push(await uploadFile(list[i]));
+        photoState.all.push(await uploadFile(list[i], (t) => { rows[i].textContent = t; }));
         rows[i].textContent = '✓ Xong'; rows[i].className = 'st ok'; ok++;
       } catch (e) {
         rows[i].textContent = `✗ ${e.message}`; rows[i].className = 'st err'; failed++;
