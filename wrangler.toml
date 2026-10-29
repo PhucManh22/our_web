@@ -7,3 +7,8 @@ compatibility_date = "2025-10-01"
 binding = "DB"
 database_name = "our-web-db"
 database_id = "5e556608-5929-43e6-832b-e5a3f7773885"
+
+# R2: Pages Function ghi ảnh upload từ giao diện
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "our-web-media"

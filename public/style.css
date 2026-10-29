@@ -85,16 +85,24 @@ img { display: block; max-width: 100%; }
 .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
 .section-head h2 { font: 600 clamp(28px, 5vw, 40px)/1.15 var(--serif); letter-spacing: -.01em; }
 
-/* Chips */
-.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 18px; scrollbar-width: none; }
+/* Chips (nhảy tới tháng) */
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 8px; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }
 .chip {
   flex: none; padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px;
-  background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; cursor: pointer;
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; text-decoration: none;
 }
 .chip small { color: var(--muted); margin-left: 4px; }
-.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.chip[aria-pressed="true"] small { color: inherit; opacity: .7; }
+.chip:hover { border-color: var(--ink); }
+.head-actions { display: flex; align-items: center; gap: 14px; }
+.btn-sm { padding: 7px 16px; font-size: 14px; }
+.section-head h2 { white-space: nowrap; }
+@media (max-width: 480px) { #photoCount { display: none; } } /* số ảnh đã có trên các chip tháng */
+
+/* Mục theo tháng */
+.month { padding-top: 40px; } /* html đã có scroll-padding-top */
+.month-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.month-head h3 { margin: 0; font: 600 clamp(22px, 4vw, 28px)/1.2 var(--serif); letter-spacing: -.01em; }
 
 /* Masonry */
 .grid { display: flex; gap: 10px; align-items: flex-start; }
@@ -106,6 +114,15 @@ img { display: block; max-width: 100%; }
 .tile img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .4s, transform .5s; }
 .tile img.loaded { opacity: 1; }
 @media (hover: hover) { .tile:hover img { transform: scale(1.03); } }
+
+/* Upload */
+.upload-panel { margin-bottom: 14px; }
+.upload-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 220px; overflow: auto; font-size: 14px; }
+.upload-list li { display: flex; justify-content: space-between; gap: 12px; }
+.upload-list .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-list .st { flex: none; color: var(--muted); }
+.upload-list .st.ok { color: #2e7d32; }
+.upload-list .st.err { color: var(--danger); }
 
 /* Notes */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 12px; }
@@ -186,3 +203,5 @@ dialog#pwDialog::backdrop { background: rgba(10,8,8,.55); }
 dialog#pwDialog h2 { font: 600 20px var(--serif); }
 dialog#pwDialog input { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
 .lock-card input[type="password"] { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
+
+.lb-del { background: none; border: 0; padding: 0; color: #ffb4ab; font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }

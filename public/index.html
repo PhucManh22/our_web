@@ -47,11 +47,23 @@
     <section class="section" id="photos" aria-labelledby="photosTitle">
       <div class="section-head">
         <h2 id="photosTitle">Kỷ niệm</h2>
-        <p class="muted" id="photoCount"></p>
+        <div class="head-actions">
+          <p class="muted" id="photoCount"></p>
+          <button class="btn btn-sm" id="uploadBtn" type="button">＋ Thêm ảnh</button>
+          <input id="fileInput" type="file" accept="image/*" multiple hidden>
+        </div>
       </div>
-      <div class="chips" id="chips" role="group" aria-label="Lọc theo album"></div>
-      <div class="grid" id="grid"></div>
-      <div id="sentinel" aria-hidden="true"></div>
+
+      <div class="card upload-panel" id="uploadPanel" hidden>
+        <div class="row end">
+          <strong id="uploadTitle">Đang tải ảnh lên…</strong>
+          <button class="link" id="uploadClose" type="button">Đóng</button>
+        </div>
+        <ul class="upload-list" id="uploadList"></ul>
+      </div>
+
+      <nav class="chips" id="chips" aria-label="Nhảy tới tháng"></nav>
+      <div id="months"></div>
       <p class="muted center" id="photoError" hidden></p>
     </section>
 
@@ -116,6 +128,7 @@
         <span id="lbCaption"></span>
         <span class="lb-actions">
           <span id="lbCount" class="muted small"></span>
+          <button class="lb-del" id="lbDelete" type="button" hidden>Xoá ảnh</button>
           <a id="lbOriginal" href="#" target="_blank" rel="noopener">Ảnh gốc</a>
         </span>
       </figcaption>
