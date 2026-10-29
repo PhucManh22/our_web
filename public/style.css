@@ -168,3 +168,21 @@ dialog#lightbox[open] { display: block; }
   .scroll-hint { animation: none; }
   .tile img { transition: none; }
 }
+
+/* Màn khoá */
+body.locked > :not(#lock):not(script) { display: none !important; }
+.lock {
+  position: fixed; inset: 0; z-index: 50; display: none; place-items: center; padding: var(--gutter);
+  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 14%, var(--bg)), var(--bg));
+}
+body.locked .lock { display: grid; }
+.lock-card { width: min(360px, 100%); display: grid; gap: 14px; text-align: center; }
+.lock-card h1 { font: 600 clamp(32px, 8vw, 44px)/1.1 var(--serif); letter-spacing: -.01em; }
+.lock-card .btn { width: 100%; }
+.lock-card input { text-align: center; }
+
+dialog#pwDialog { border: 0; padding: 0; background: transparent; width: min(380px, calc(100vw - 32px)); color: var(--ink); }
+dialog#pwDialog::backdrop { background: rgba(10,8,8,.55); }
+dialog#pwDialog h2 { font: 600 20px var(--serif); }
+dialog#pwDialog input { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
+.lock-card input[type="password"] { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }

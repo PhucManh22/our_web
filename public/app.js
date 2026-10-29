@@ -9,7 +9,6 @@ const topbar = document.querySelector('.topbar');
 const onScroll = () => topbar.classList.toggle('solid', scrollY > innerHeight * 0.6);
 addEventListener('scroll', onScroll, { passive: true });
 onScroll();
-$('hero').style.backgroundImage = `url("${media('hero.webp')}")`;
 $('year').textContent = new Date().getFullYear();
 
 /* ---------- Đồng hồ ngày yêu ---------- */
@@ -303,4 +302,79 @@ $('lockBtn').addEventListener('click', () => { setPass(''); setUnlocked(false); 
 // Tự mở nếu phiên còn mật khẩu
 if (getPass()) refreshNotes().then(() => setUnlocked(true)).catch(() => setPass(''));
 
-loadPhotos();
+/* ---------- Màn khoá + đổi mật khẩu ---------- */
+const TOKEN_KEY = 'ourweb.token';
+const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) ?? ''; } catch { return ''; } };
+const setToken = (v) => { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch {} };
+
+async function authApi(action, body) {
+  const res = await fetch(`${apiBase}/api/auth${action ? `?action=${action}` : ''}`, {
+    method: body ? 'POST' : 'GET',
+    headers: { authorization: `Bearer ${getToken()}`, ...(body ? { 'content-type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error || `Lỗi ${res.status}`), { status: res.status });
+  return data;
+}
+
+let entered = false;
+function enter() {
+  document.body.classList.remove('locked');
+  if (entered) return;
+  entered = true;
+  $('hero').style.backgroundImage = `url("${media('hero.webp')}")`;
+  loadPhotos();
+}
+
+function showLock(message) {
+  document.body.classList.add('locked');
+  $('lockMsg').textContent = message;
+  $('loginPass').focus();
+}
+
+async function checkGate() {
+  try {
+    const { configured, authenticated } = await authApi();
+    if (authenticated) return enter();
+    setToken('');
+    showLock(configured ? 'Nhập mật khẩu để vào.' : 'Chưa cài mật khẩu. Chạy "npm run auth:set" để cài.');
+  } catch {
+    showLock('Không kết nối được máy chủ. Tải lại trang để thử lại.');
+  }
+}
+
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = $('loginBtn');
+  btn.disabled = true; showError($('loginError'), '');
+  try {
+    const { token } = await authApi('login', { password: $('loginPass').value });
+    setToken(token);
+    $('loginPass').value = '';
+    enter();
+  } catch (err) {
+    showError($('loginError'), err.status === 401 ? 'Sai mật khẩu rồi 🥺' : err.message);
+  } finally { btn.disabled = false; }
+});
+
+$('logoutBtn').addEventListener('click', () => { setToken(''); location.reload(); });
+
+const pwDialog = $('pwDialog');
+$('changePwBtn').addEventListener('click', () => { $('pwForm').reset(); showError($('pwError'), ''); pwDialog.showModal(); });
+$('pwCancel').addEventListener('click', () => pwDialog.close());
+$('pwForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if ($('pwNext').value !== $('pwNext2').value) return showError($('pwError'), 'Hai mật khẩu mới không khớp.');
+  $('pwSave').disabled = true; showError($('pwError'), '');
+  try {
+    const { token } = await authApi('change', { current: $('pwCurrent').value, next: $('pwNext').value });
+    setToken(token);
+    pwDialog.close();
+    alert('Đã đổi mật khẩu 💕');
+  } catch (err) {
+    showError($('pwError'), err.message);
+  } finally { $('pwSave').disabled = false; }
+});
+
+checkGate();

@@ -10,7 +10,17 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="locked">
+  <div class="lock" id="lock">
+    <form class="lock-card" id="loginForm" autocomplete="off">
+      <h1>Chúng mình</h1>
+      <p class="muted" id="lockMsg">Nhập mật khẩu để vào.</p>
+      <input id="loginPass" type="password" placeholder="Mật khẩu" aria-label="Mật khẩu đăng nhập" required>
+      <button class="btn" type="submit" id="loginBtn">Vào</button>
+      <p class="error" id="loginError" role="alert" hidden></p>
+    </form>
+  </div>
+
   <header class="topbar">
     <a class="brand" href="#top">Chúng mình</a>
     <nav aria-label="Điều hướng">
@@ -79,7 +89,25 @@
     </section>
   </main>
 
-  <footer class="footer muted small center">Làm bằng tình yêu · <span id="year"></span></footer>
+  <footer class="footer muted small center">
+    Làm bằng tình yêu · <span id="year"></span><br>
+    <button class="link" id="changePwBtn" type="button">Đổi mật khẩu</button> ·
+    <button class="link" id="logoutBtn" type="button">Đăng xuất</button>
+  </footer>
+
+  <dialog id="pwDialog" aria-label="Đổi mật khẩu">
+    <form id="pwForm" class="card" method="dialog" autocomplete="off">
+      <h2>Đổi mật khẩu đăng nhập</h2>
+      <input id="pwCurrent" type="password" placeholder="Mật khẩu hiện tại" aria-label="Mật khẩu hiện tại" required>
+      <input id="pwNext" type="password" placeholder="Mật khẩu mới (≥ 6 ký tự)" aria-label="Mật khẩu mới" minlength="6" required>
+      <input id="pwNext2" type="password" placeholder="Nhập lại mật khẩu mới" aria-label="Nhập lại mật khẩu mới" required>
+      <p class="error" id="pwError" role="alert" hidden></p>
+      <div class="row end">
+        <button class="link" id="pwCancel" type="button">Huỷ</button>
+        <button class="btn" type="submit" id="pwSave">Lưu</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="lightbox" aria-label="Xem ảnh">
     <figure>

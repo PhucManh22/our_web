@@ -8,6 +8,8 @@
     "photos:upload": "node scripts/upload-photos.mjs",
     "dev": "node scripts/dev.mjs",
     "db:migrate:local": "wrangler d1 migrations apply our-web-db --local",
+    "auth:set": "node scripts/set-password.mjs --remote",
+    "auth:set:local": "node scripts/set-password.mjs --local",
     "db:migrate": "wrangler d1 migrations apply our-web-db --remote",
     "deploy": "wrangler pages deploy public --project-name our-web"
   },
