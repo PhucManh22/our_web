@@ -58,17 +58,18 @@ function monthLabel(key) {
 
 async function loadPhotos() {
   try {
-    const [manifest, meta, uploaded] = await Promise.all([
+    const [manifest, meta, remote] = await Promise.all([
       fetch('photos.json').then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }),
       fetch('photo-meta.json').then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
-      authApiRaw('/api/photos').then((d) => d.photos).catch(() => []), // lỗi thì vẫn hiện ảnh tĩnh
+      authApiRaw('/api/photos').catch(() => ({ photos: [], deleted: [] })), // lỗi thì vẫn hiện ảnh tĩnh
     ]);
     const overrides = meta.photos ?? {};
-    const statics = manifest.photos.map((p) => {
+    const hidden = new Set(remote.deleted ?? []);
+    const statics = manifest.photos.filter((p) => !hidden.has(p.id)).map((p) => {
       const o = overrides[p.id] ?? {};
       return { ...p, taken: o.date ?? p.taken ?? meta.defaultDate ?? null, caption: o.caption ?? '' };
     });
-    photoState.all = [...statics, ...uploaded];
+    photoState.all = [...statics, ...(remote.photos ?? [])];
     render();
   } catch (err) {
     console.error(err);
@@ -152,7 +153,9 @@ function makeTile(p, index) {
   img.src = media(`thumb/${p.id}.webp`);
   if (img.complete) img.classList.add('loaded');
   btn.append(img);
-  btn.addEventListener('click', () => openLightbox(index));
+  btn.dataset.id = p.id;
+  if (selected.has(p.id)) btn.classList.add('selected');
+  btn.addEventListener('click', () => (selecting ? toggleSelect(p, btn) : openLightbox(index)));
   return btn;
 }
 
@@ -160,6 +163,51 @@ let resizeTimer;
 addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => { if (photoState.all.length && colCount() !== photoState.cols) layoutGrids(); }, 150);
+});
+
+/* ---------- Chọn & xoá ảnh ---------- */
+let selecting = false;
+const selected = new Map(); // id → photo
+
+async function deletePhotos(list) {
+  const { deleted } = await authApiRaw('/api/photos?action=delete', {
+    method: 'POST',
+    body: { items: list.map((p) => ({ id: p.id, original: p.original })) },
+  });
+  const gone = new Set(deleted);
+  photoState.all = photoState.all.filter((p) => !gone.has(p.id));
+  render();
+  if (deleted.length < list.length) alert(`Chỉ xoá được ${deleted.length}/${list.length} ảnh (một số tên file lạ).`);
+}
+
+function updateSelectBar() {
+  $('selectCount').textContent = `Đã chọn ${selected.size}`;
+  $('selectDelete').disabled = selected.size === 0;
+}
+function setSelecting(on) {
+  selecting = on;
+  selected.clear();
+  document.body.classList.toggle('selecting', on);
+  $('selectBar').hidden = !on;
+  $('selectBtn').textContent = on ? 'Xong' : 'Chọn ảnh';
+  document.querySelectorAll('.tile.selected').forEach((t) => t.classList.remove('selected'));
+  updateSelectBar();
+}
+function toggleSelect(p, btn) {
+  if (selected.has(p.id)) { selected.delete(p.id); btn.classList.remove('selected'); }
+  else { selected.set(p.id, p); btn.classList.add('selected'); }
+  updateSelectBar();
+}
+
+$('selectBtn').addEventListener('click', () => setSelecting(!selecting));
+$('selectCancel').addEventListener('click', () => setSelecting(false));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && selecting && !lb.open) setSelecting(false); });
+$('selectDelete').addEventListener('click', async () => {
+  const list = [...selected.values()];
+  if (!list.length || !confirm(`Xoá vĩnh viễn ${list.length} ảnh (cả ảnh gốc trên R2)?\nKhông khôi phục được.`)) return;
+  $('selectDelete').disabled = true;
+  try { await deletePhotos(list); setSelecting(false); }
+  catch (e) { alert(e.message); updateSelectBar(); }
 });
 
 /* ---------- Upload ảnh ---------- */
@@ -238,7 +286,9 @@ async function uploadFile(file, onStatus = () => {}) {
   return data.photo;
 }
 
+let panelTimer;
 async function handleFiles(files) {
+  clearTimeout(panelTimer);
   const list = [...files].filter((f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name));
   if (!list.length) return;
   const panel = $('uploadPanel'), ul = $('uploadList');
@@ -267,6 +317,7 @@ async function handleFiles(files) {
     }
   }));
   if (ok) render();
+  if (!failed) panelTimer = setTimeout(() => { panel.hidden = true; }, 3000); // thành công hết thì tự ẩn; có lỗi thì giữ lại để đọc
 }
 
 $('uploadBtn').addEventListener('click', () => $('fileInput').click());
@@ -292,7 +343,7 @@ function showPhoto(i) {
   $('lbCaption').textContent = parts.join(' · ');
   $('lbCount').textContent = `${lbIndex + 1} / ${list.length}`;
   $('lbOriginal').href = media(`original/${encodeURIComponent(p.original)}`);
-  $('lbDelete').hidden = !p.uploaded; // chỉ xoá được ảnh upload từ web
+  $('lbDelete').hidden = false;
   [1, -1].forEach((d) => { new Image().src = media(`full/${list[(lbIndex + d + list.length) % list.length].id}.webp`); });
 }
 
@@ -321,13 +372,9 @@ lb.addEventListener('touchend', (e) => {
 
 $('lbDelete').addEventListener('click', async () => {
   const p = photoState.list[lbIndex];
-  if (!p?.uploaded || !confirm('Xoá ảnh này vĩnh viễn (cả ảnh gốc)?')) return;
-  try {
-    await authApiRaw(`/api/photos?id=${p.id}`, { method: 'DELETE' });
-    photoState.all = photoState.all.filter((x) => x.id !== p.id);
-    lb.close();
-    render();
-  } catch (e) { alert(e.message); }
+  if (!p || !confirm('Xoá vĩnh viễn ảnh này (cả ảnh gốc trên R2)?\nKhông khôi phục được.')) return;
+  try { lb.close(); await deletePhotos([p]); }
+  catch (e) { alert(e.message); }
 });
 
 /* ---------- Ghi chú ---------- */
@@ -450,8 +497,12 @@ async function authApi(action, body) {
   return data;
 }
 
-async function authApiRaw(path, { method = 'GET' } = {}) {
-  const res = await fetch(`${apiBase}${path}`, { method, headers: { authorization: `Bearer ${getToken()}` } });
+async function authApiRaw(path, { method = 'GET', body } = {}) {
+  const res = await fetch(`${apiBase}${path}`, {
+    method,
+    headers: { authorization: `Bearer ${getToken()}`, ...(body ? { 'content-type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error || `Lỗi ${res.status}`), { status: res.status });
   return data;

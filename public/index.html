@@ -49,6 +49,7 @@
         <h2 id="photosTitle">Kỷ niệm</h2>
         <div class="head-actions">
           <p class="muted" id="photoCount"></p>
+          <button class="btn btn-sm btn-ghost" id="selectBtn" type="button">Chọn ảnh</button>
           <button class="btn btn-sm" id="uploadBtn" type="button">＋ Thêm ảnh</button>
           <input id="fileInput" type="file" accept="image/*" multiple hidden>
         </div>
@@ -137,6 +138,12 @@
     <button class="lb-btn lb-prev" id="lbPrev" type="button" aria-label="Ảnh trước">‹</button>
     <button class="lb-btn lb-next" id="lbNext" type="button" aria-label="Ảnh sau">›</button>
   </dialog>
+
+  <div class="select-bar" id="selectBar" hidden>
+    <span id="selectCount">Đã chọn 0</span>
+    <button class="btn btn-sm btn-danger" id="selectDelete" type="button" disabled>Xoá</button>
+    <button class="link" id="selectCancel" type="button">Huỷ</button>
+  </div>
 
   <audio id="music" preload="none" loop></audio>
   <script src="config.js?v=__V__"></script>

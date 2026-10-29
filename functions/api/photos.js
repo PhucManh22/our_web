@@ -1,7 +1,7 @@
 // /api/photos — ảnh upload từ giao diện (cần đăng nhập)
 //   GET            danh sách ảnh đã upload
 //   POST           multipart: thumb + full (WebP, đã resize ở trình duyệt) + original + meta (JSON)
-//   DELETE ?id=    xoá ảnh (3 object R2 + dòng D1)
+//   POST ?action=delete   body {items:[{id, original}]} — xoá ảnh (object R2 + dòng D1 / đánh dấu ẩn với ảnh cũ)
 import { json, withCors } from '../_shared/http.js';
 import { requireSession } from '../_shared/session.js';
 
@@ -39,7 +39,32 @@ async function handle(ctx) {
     const { results } = await env.DB.prepare(
       'SELECT id, original, w, h, color, caption, uploaded_at FROM photos ORDER BY uploaded_at DESC, id DESC'
     ).all();
-    return json({ photos: results.map(toPhoto) });
+    const { results: gone } = await env.DB.prepare('SELECT id FROM deleted_photos').all();
+    return json({ photos: results.map(toPhoto), deleted: gone.map((r) => r.id) });
+  }
+
+  if (request.method === 'POST' && new URL(request.url).searchParams.get('action') === 'delete') {
+    const body = await request.json().catch(() => ({}));
+    const items = Array.isArray(body.items) ? body.items.slice(0, 200) : [];
+    if (!items.length) return json({ error: 'Chưa chọn ảnh nào' }, 400);
+    const deleted = [];
+    for (const it of items) {
+      const id = String(it?.id ?? '');
+      const row = /^[a-f0-9]{12}$/.test(id) ? await env.DB.prepare('SELECT original FROM photos WHERE id = ?').bind(id).first() : null;
+      if (row) { // ảnh upload từ web
+        await env.MEDIA.delete([`thumb/${id}.webp`, `full/${id}.webp`, `original/${row.original}`]);
+        await env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(id).run();
+        deleted.push(id);
+        continue;
+      }
+      // ảnh cũ: id = slug tên file, original = tên file gốc (không chứa dấu "/", nên không thoát khỏi thư mục original/)
+      const original = String(it?.original ?? '');
+      if (!/^[a-z0-9-]{1,120}$/.test(id) || !/^[A-Za-z0-9._() -]{1,200}$/.test(original)) continue;
+      await env.MEDIA.delete([`thumb/${id}.webp`, `full/${id}.webp`, `original/${original}`]);
+      await env.DB.prepare('INSERT OR IGNORE INTO deleted_photos (id) VALUES (?)').bind(id).run();
+      deleted.push(id);
+    }
+    return json({ deleted });
   }
 
   if (request.method === 'POST') {
@@ -78,16 +103,6 @@ async function handle(ctx) {
       if (e instanceof BadRequest) return json({ error: e.message }, 400);
       throw e;
     }
-  }
-
-  if (request.method === 'DELETE') {
-    const id = new URL(request.url).searchParams.get('id') ?? '';
-    if (!/^[a-f0-9]{12}$/.test(id)) return json({ error: 'id không hợp lệ' }, 400);
-    const row = await env.DB.prepare('SELECT original FROM photos WHERE id = ?').bind(id).first();
-    if (!row) return json({ error: 'Không tìm thấy ảnh' }, 404);
-    await env.MEDIA.delete([`thumb/${id}.webp`, `full/${id}.webp`, `original/${row.original}`]);
-    await env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(id).run();
-    return json({ ok: true });
   }
 
   return json({ error: 'Method không hỗ trợ' }, 405);

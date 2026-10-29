@@ -151,21 +151,30 @@ our_web/
 
 ## 8. STACK DỰ ÁN
 
-Website lưu giữ kỷ niệm của hai vợ chồng — **chạy hoàn toàn trên Cloudflare free tier**.
+Website lưu giữ kỷ niệm của hai vợ chồng. Frontend ở **GitHub Pages**, backend + dữ liệu ở **Cloudflare free tier**.
+
+```
+phucmanh22.github.io/our_web/   giao diện (GitHub Actions deploy thư mục public/)
+our-web.pages.dev/api/*         API (Cloudflare Pages Functions, CORS cho github.io)
+pub-…r2.dev                     ảnh/nhạc (R2, bucket our-web-media)
+```
 
 | Hạng mục | Lựa chọn | Ghi chú |
 |---|---|---|
-| Frontend | HTML + CSS + JS thuần (ES module), không build step | `public/` — masonry tự viết, lightbox dùng `<dialog>` |
-| Backend | Cloudflare **Pages Functions** (`functions/api/notes.js`) | Cùng origin, không cần CORS |
-| Database | Cloudflare **D1** (SQLite) | bảng `notes`, migration trong `migrations/` |
-| Lưu ảnh/nhạc | Cloudflare **R2** (bucket `our-web-media`) | `thumb/` `full/` `original/` `audio/` `hero.webp` |
-| Hosting | Cloudflare **Pages** | `npm run deploy` |
-| Secret | `NOTES_PASSCODE` (Pages secret / `.dev.vars` khi dev) | mật khẩu kiểm tra ở server |
-| CI/CD | _(chưa có)_ | gợi ý: GitHub Actions + `wrangler pages deploy` |
+| Frontend | HTML + CSS + JS thuần (ES module), không build step | `public/` — masonry theo tháng, lightbox `<dialog>`, màn khoá |
+| Backend | Pages Functions: `api/notes.js`, `api/auth.js`, `api/photos.js` | dùng chung `functions/_shared/` (http, auth, session) |
+| Database | Cloudflare **D1** `our-web-db` | bảng `notes`, `settings`, `photos`, `deleted_photos` — migration trong `migrations/` |
+| Lưu ảnh/nhạc | Cloudflare **R2** `our-web-media` | `thumb/` `full/` `original/` `audio/` `hero.webp` |
+| Hosting | GitHub Pages (giao diện) + Cloudflare Pages (API) | `npm run deploy` chỉ cần khi sửa `functions/` hoặc migration |
+| Secret (Pages) | `NOTES_PASSCODE`, `SESSION_SECRET` | local: `.dev.vars` |
+| Đăng nhập | mật khẩu băm PBKDF2 trong D1 (`settings.login_hash`) | cài lần đầu: `npm run auth:set` (terminal thật) |
+| CI/CD | `.github/workflows/pages.yml` | gắn mã commit vào URL css/js để chống cache cũ |
 
 ### Quy ước riêng của project
-* **KHÔNG commit ảnh/nhạc vào git.** Ảnh gốc ở `img_love/` (đã `.gitignore`), pipeline: `npm run photos:optimize` → `npm run photos:upload`.
-* `public/photos.json` được **sinh ra** bởi script (commit được, ~50 KB); chỉnh ngày/chú thích/album ở `public/photo-meta.json`, không sửa tay `photos.json`.
-* Ảnh `CIMG*` có EXIF ngày sai (2015) nên bị coi là "chưa rõ ngày" — gán ngày đúng qua `photo-meta.json`.
-* Mật khẩu/secret không bao giờ nằm trong code client. Render nội dung người dùng bằng `textContent`, không `innerHTML`.
-* Dev local: `npm run db:migrate:local` rồi `npm run dev` (web `:8788`, media `:8790`).
+* **KHÔNG commit ảnh/nhạc vào git.** Ảnh gốc cũ đã nằm trên R2 (`original/`); thêm ảnh mới bằng nút **＋ Thêm ảnh** trên web (ngày ảnh = ngày upload) hoặc `npm run photos:optimize` → `npm run photos:upload`.
+* `public/photos.json` là ảnh cũ, **sinh ra** bởi script; chỉnh ngày/chú thích ở `public/photo-meta.json` (`defaultDate` áp cho ảnh không có ngày). Ảnh upload từ web nằm trong D1, không trong `photos.json`.
+* Xoá ảnh cũ từ giao diện: xoá object R2 + ghi id vào `deleted_photos` (web ẩn khỏi `photos.json`); xoá ảnh upload: xoá R2 + dòng `photos`. Xoá là vĩnh viễn.
+* Màn khoá chỉ chặn giao diện; file tĩnh trên github.io và ảnh trên R2 vẫn công khai nếu biết đường dẫn. Khoá thật cần R2 private + phục vụ ảnh qua Function.
+* Mật khẩu/secret không nằm trong code client. Render nội dung người dùng bằng `textContent`, không `innerHTML`.
+* HEIC: chuyển sang JPEG ngay trên trình duyệt (`public/vendor/heic2any`, tải lười); chuyển từng file một vì thư viện không an toàn khi gọi song song.
+* Dev local: `npm run db:migrate:local` → `npm run dev` (web `:8788`, media `:8790`); ảnh upload khi dev nằm trong R2 giả lập nên không hiện trên media server local.
