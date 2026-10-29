@@ -1,4 +1,4 @@
-const { startDate, mediaBase } = window.OUR_WEB;
+const { startDate, mediaBase, apiBase } = window.OUR_WEB;
 const $ = (id) => document.getElementById(id);
 const media = (path) => `${mediaBase}/${path}`;
 const fmtDate = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -205,7 +205,7 @@ const getPass = () => { try { return sessionStorage.getItem(PASS_KEY) ?? ''; } c
 const setPass = (v) => { try { v ? sessionStorage.setItem(PASS_KEY, v) : sessionStorage.removeItem(PASS_KEY); } catch {} };
 
 async function api(method, { pass = getPass(), body, query = '' } = {}) {
-  const res = await fetch(`/api/notes${query}`, {
+  const res = await fetch(`${apiBase}/api/notes${query}`, {
     method,
     headers: { 'x-passcode': pass, ...(body ? { 'content-type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,

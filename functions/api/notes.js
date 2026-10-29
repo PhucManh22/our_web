@@ -1,6 +1,25 @@
 // Pages Function: /api/notes  (GET danh sách · POST thêm · DELETE ?id=)
 // Mật khẩu kiểm tra Ở SERVER (secret NOTES_PASSCODE), không nằm trong code client.
 
+// Chỉ các origin này được gọi API từ trình duyệt (GitHub Pages dùng phần frontend).
+const ALLOWED_ORIGINS = new Set([
+  'https://phucmanh22.github.io',
+  'https://our-web.pages.dev',
+  'http://localhost:8788',
+]);
+
+function corsHeaders(request) {
+  const origin = request.headers.get('origin');
+  const h = { vary: 'origin' };
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    h['access-control-allow-origin'] = origin;
+    h['access-control-allow-headers'] = 'content-type, x-passcode';
+    h['access-control-allow-methods'] = 'GET, POST, DELETE, OPTIONS';
+    h['access-control-max-age'] = '86400';
+  }
+  return h;
+}
+
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
@@ -18,7 +37,16 @@ async function safeEqual(a, b) {
   return diff === 0;
 }
 
-export async function onRequest({ request, env }) {
+export async function onRequest(ctx) {
+  if (ctx.request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders(ctx.request) });
+  }
+  const res = await handle(ctx);
+  for (const [k, v] of Object.entries(corsHeaders(ctx.request))) res.headers.set(k, v);
+  return res;
+}
+
+async function handle({ request, env }) {
   if (!env.NOTES_PASSCODE || !env.DB) return json({ error: 'Server chưa cấu hình' }, 500);
 
   const pass = request.headers.get('x-passcode') ?? '';
