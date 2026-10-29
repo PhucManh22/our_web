@@ -77,14 +77,16 @@ await fs.mkdir(path.dirname(MANIFEST), { recursive: true });
 const names = (await fs.readdir(SRC)).filter((f) => /\.(jpe?g|png|webp)$/i.test(f)).sort();
 console.log(`Tìm thấy ${names.length} ảnh trong ${SRC}`);
 
-// Ảnh nền hero + nhạc nền → cùng nằm trong .build/photos để upload chung
+// Ảnh nền hero + nhạc nền (mọi .mp3 trong sound/) → cùng nằm trong .build/photos để upload chung
 await fs.mkdir(path.join(OUT, 'audio'), { recursive: true });
 await sharp('img_love/home_background.JPG', { failOn: 'none' })
   .rotate()
   .resize({ width: 2000, withoutEnlargement: true })
   .webp({ quality: 78 })
   .toFile(path.join(OUT, 'hero.webp'));
-await fs.copyFile('sound/treaser.mp3', path.join(OUT, 'audio/treaser.mp3'));
+for (const f of await fs.readdir('sound').catch(() => [])) {
+  if (/\.mp3$/i.test(f)) await fs.copyFile(path.join('sound', f), path.join(OUT, 'audio', f));
+}
 
 const results = [];
 const failed = [];

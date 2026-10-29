@@ -1,4 +1,4 @@
-const { startDate, mediaBase, apiBase } = window.OUR_WEB;
+const { startDate, mediaBase, apiBase, music: musicFile } = window.OUR_WEB;
 const $ = (id) => document.getElementById(id);
 const media = (path) => `${mediaBase}/${path}`;
 const fmtDate = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -33,7 +33,7 @@ setInterval(tick, 1000);
 const music = $('music');
 $('musicBtn').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
-  if (!music.src) music.src = media('audio/treaser.mp3');
+  if (!music.src) music.src = media(musicFile);
   if (music.paused) {
     try { await music.play(); } catch { return; }
   } else music.pause();
