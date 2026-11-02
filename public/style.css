@@ -358,9 +358,10 @@ img { display: block; max-width: 100%; }
   box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35);
 }
 
-/* ---------- 3D Coverflow Showcase ---------- */
+/* ---------- 3D Coverflow Showcase (Ultra-Smooth Mobile Engine) ---------- */
 .coverflow-section {
   padding: 10px 0; overflow: hidden;
+  contain: paint;
 }
 .coverflow-wrap {
   position: relative; width: 100%;
@@ -368,23 +369,31 @@ img { display: block; max-width: 100%; }
   display: flex; flex-direction: column; align-items: center;
   user-select: none; -webkit-user-select: none;
   touch-action: pan-y;
+  contain: layout paint;
 }
 .coverflow {
   position: relative; width: 100%; height: 390px;
   transform-style: preserve-3d;
   display: flex; align-items: center; justify-content: center;
+  will-change: transform;
 }
 .cf-item {
   position: absolute; width: 250px; height: 330px;
   border-radius: 18px; overflow: hidden; cursor: pointer;
   background: #201519; border: 2.5px solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, filter 0.4s ease, box-shadow 0.4s ease;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease, filter 0.4s ease, box-shadow 0.4s ease;
   transform-style: preserve-3d;
+  will-change: transform, opacity;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
   -webkit-box-reflect: below 12px linear-gradient(transparent 72%, rgba(0,0,0,0.25));
+}
+.coverflow.dragging .cf-item {
+  transition: none !important;
 }
 .cf-item img {
   width: 100%; height: 100%; object-fit: cover; pointer-events: none;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
 }
 .cf-item .cf-caption {
   position: absolute; bottom: 0; inset-inline: 0;

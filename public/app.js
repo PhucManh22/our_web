@@ -339,22 +339,63 @@ function makeTile(p, index) {
   return btn;
 }
 
-/* ---------- 3D Coverflow Controller (Toàn bộ ảnh trong tháng) ---------- */
+/* ---------- 3D Coverflow Controller (Ultra-Smooth Mobile Engine) ---------- */
 let cfPhotos = [];
 let cfActive = 0;
+let cfPool = [];
+let fullUpgradeTimer = null;
+
+function ensureCoverflowPool() {
+  const container = $('coverflow');
+  if (!container) return;
+  if (cfPool.length === 7 && container.children.length === 7) return;
+
+  container.innerHTML = '';
+  const offsets = [-3, -2, -1, 0, 1, 2, 3];
+  cfPool = offsets.map((offset, slotIdx) => {
+    const el = document.createElement('div');
+    el.className = 'cf-item';
+    const img = document.createElement('img');
+    img.loading = 'eager';
+    img.decoding = 'async';
+    const cap = document.createElement('div');
+    cap.className = 'cf-caption';
+    el.append(img, cap);
+
+    el.addEventListener('click', () => {
+      const node = cfPool[slotIdx];
+      if (!node || node.idx < 0) return;
+      if (node.idx === cfActive) {
+        const globalIdx = photoState.list.indexOf(node.photo);
+        openLightbox(globalIdx >= 0 ? globalIdx : 0);
+      } else {
+        setCfActive(node.idx);
+      }
+    });
+
+    container.append(el);
+    return { el, img, cap, photo: null, idx: -1, offset };
+  });
+}
 
 function initMonthCoverflow(photos) {
   cfPhotos = photos;
   cfActive = 0;
+  ensureCoverflowPool();
+
   const sc = $('cfScrubber');
   if (sc) {
     sc.min = 0;
     sc.max = Math.max(0, photos.length - 1);
     sc.value = 0;
-    sc.oninput = (e) => setCfActive(Number(e.target.value));
+    let scrubRaf = null;
+    sc.oninput = (e) => {
+      cancelAnimationFrame(scrubRaf);
+      scrubRaf = requestAnimationFrame(() => setCfActive(Number(e.target.value)));
+    };
   }
   $('cfCounter').textContent = `${photos.length ? 1 : 0} / ${photos.length}`;
-  renderVirtualCoverflow();
+  updatePoolCards(0);
 }
 
 function setCfActive(idx) {
@@ -363,99 +404,160 @@ function setCfActive(idx) {
   const sc = $('cfScrubber');
   if (sc && Number(sc.value) !== cfActive) sc.value = cfActive;
   $('cfCounter').textContent = `${cfActive + 1} / ${cfPhotos.length}`;
-  renderVirtualCoverflow();
+  updatePoolCards(0);
 }
 
-function renderVirtualCoverflow() {
-  const container = $('coverflow');
-  if (!container || !cfPhotos.length) return;
+function calculate3DTransform(offset) {
+  const x = offset;
+  const absX = Math.abs(x);
+  const sign = x < 0 ? -1 : x > 0 ? 1 : 0;
 
-  const offsets = [-3, -2, -1, 0, 1, 2, 3];
+  let tx = x * 190;
+  let tz = (1 - Math.min(1, absX)) * 160 - Math.max(0, absX - 1) * 115;
+  let ry = -sign * Math.min(55, absX * 38);
+  let scale = Math.max(0.65, 1.08 - absX * 0.16);
+  let opacity = Math.max(0, Math.min(1, 1.25 - absX * 0.35));
+  let zIndex = Math.round(20 - absX * 5);
+
+  if (absX > 3) {
+    opacity = 0;
+    tz = -300;
+  }
+
+  return {
+    transform: `translate3d(${tx}px, 0, ${tz}px) rotateY(${ry}deg) scale(${scale})`,
+    opacity,
+    zIndex,
+    filter: `brightness(${Math.max(0.45, 1 - absX * 0.18)})`,
+  };
+}
+
+function updatePoolCards(dragShift = 0) {
+  if (!cfPool.length || !cfPhotos.length) return;
   const total = cfPhotos.length;
 
-  container.innerHTML = '';
-  offsets.forEach((offset) => {
-    let idx = cfActive + offset;
-    if (idx < 0 || idx >= total) return;
+  cfPool.forEach((node) => {
+    const virtualIdx = cfActive + node.offset;
+    const effectiveOffset = node.offset + dragShift;
+    const style = calculate3DTransform(effectiveOffset);
 
-    const p = cfPhotos[idx];
-    const el = document.createElement('div');
-    el.className = `cf-item ${offset === 0 ? 'active' : ''}`;
-
-    const img = document.createElement('img');
-    img.src = media(offset === 0 ? `full/${p.id}.webp` : `thumb/${p.id}.webp`);
-    img.alt = p.caption || '';
-    img.loading = 'lazy';
-
-    const cap = document.createElement('div');
-    cap.className = 'cf-caption';
-    cap.textContent = p.caption || (p.taken ? fmtDate.format(new Date(p.taken)) : `Ảnh ${idx + 1}`);
-
-    el.append(img, cap);
-
-    if (offset === 0) {
-      el.style.transform = 'translateX(0) translateZ(160px) rotateY(0deg) scale(1.08)';
-      el.style.zIndex = '15';
-      el.style.opacity = '1';
-      el.style.filter = 'brightness(1)';
-    } else if (offset === -1) {
-      el.style.transform = 'translateX(-190px) translateZ(10px) rotateY(38deg) scale(0.92)';
-      el.style.zIndex = '10';
-      el.style.opacity = '0.9';
-      el.style.filter = 'brightness(0.85)';
-    } else if (offset === 1) {
-      el.style.transform = 'translateX(190px) translateZ(10px) rotateY(-38deg) scale(0.92)';
-      el.style.zIndex = '10';
-      el.style.opacity = '0.9';
-      el.style.filter = 'brightness(0.85)';
-    } else if (offset === -2) {
-      el.style.transform = 'translateX(-330px) translateZ(-110px) rotateY(48deg) scale(0.78)';
-      el.style.zIndex = '5';
-      el.style.opacity = '0.6';
-      el.style.filter = 'brightness(0.65)';
-    } else if (offset === 2) {
-      el.style.transform = 'translateX(330px) translateZ(-110px) rotateY(-48deg) scale(0.78)';
-      el.style.zIndex = '5';
-      el.style.opacity = '0.6';
-      el.style.filter = 'brightness(0.65)';
-    } else if (offset === -3) {
-      el.style.transform = 'translateX(-430px) translateZ(-220px) rotateY(55deg) scale(0.65)';
-      el.style.zIndex = '2';
-      el.style.opacity = '0.25';
-      el.style.filter = 'brightness(0.5)';
-    } else if (offset === 3) {
-      el.style.transform = 'translateX(430px) translateZ(-220px) rotateY(-55deg) scale(0.65)';
-      el.style.zIndex = '2';
-      el.style.opacity = '0.25';
-      el.style.filter = 'brightness(0.5)';
+    if (virtualIdx < 0 || virtualIdx >= total) {
+      node.el.style.opacity = '0';
+      node.el.style.pointerEvents = 'none';
+      node.idx = -1;
+      node.photo = null;
+      return;
     }
 
-    el.addEventListener('click', () => {
-      if (offset === 0) {
-        const globalIdx = photoState.list.indexOf(p);
-        openLightbox(globalIdx >= 0 ? globalIdx : 0);
-      } else {
-        setCfActive(idx);
-      }
-    });
+    const p = cfPhotos[virtualIdx];
+    node.photo = p;
+    node.idx = virtualIdx;
+    node.el.style.pointerEvents = 'auto';
 
-    container.append(el);
+    const isActive = node.offset === 0 && Math.abs(dragShift) < 0.35;
+    node.el.classList.toggle('active', isActive);
+
+    node.el.style.transform = style.transform;
+    node.el.style.opacity = String(style.opacity);
+    node.el.style.zIndex = String(style.zIndex);
+    node.el.style.filter = style.filter;
+
+    const thumbSrc = media(`thumb/${p.id}.webp`);
+    if (node.img.src !== thumbSrc && !node.img.src.includes(p.id)) {
+      node.img.src = thumbSrc;
+    }
+
+    node.cap.textContent = p.caption || (p.taken ? fmtDate.format(new Date(p.taken)) : `Ảnh ${virtualIdx + 1}`);
   });
+
+  clearTimeout(fullUpgradeTimer);
+  if (Math.abs(dragShift) < 0.05) {
+    fullUpgradeTimer = setTimeout(() => {
+      const centerNode = cfPool.find((n) => n.offset === 0);
+      if (centerNode && centerNode.photo) {
+        centerNode.img.src = media(`full/${centerNode.photo.id}.webp`);
+      }
+    }, 200);
+  }
 }
+
+/* ---------- Direct Touch Drag with Momentum Physics ---------- */
+const cfWrap = $('coverflowWrap');
+const cfContainer = $('coverflow');
 
 $('cfPrev')?.addEventListener('click', () => setCfActive(cfActive - 1));
 $('cfNext')?.addEventListener('click', () => setCfActive(cfActive + 1));
 
-let cfStartX = null;
-const cfWrap = $('coverflowWrap');
-if (cfWrap) {
-  cfWrap.addEventListener('touchstart', (e) => { cfStartX = e.touches[0].clientX; }, { passive: true });
-  cfWrap.addEventListener('touchend', (e) => {
-    if (cfStartX === null) return;
-    const dx = e.changedTouches[0].clientX - cfStartX;
-    if (Math.abs(dx) > 35) setCfActive(cfActive + (dx < 0 ? 1 : -1));
-    cfStartX = null;
-  });
+if (cfWrap && cfContainer) {
+  let isDragging = false;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let dragShift = 0;
+  let lastTouchX = 0;
+  let lastTouchTime = 0;
+  let velocity = 0;
+  let isHorizontal = null;
+
+  cfWrap.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1 || !cfPhotos.length) return;
+    isDragging = true;
+    touchStartX = lastTouchX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    lastTouchTime = performance.now();
+    dragShift = 0;
+    velocity = 0;
+    isHorizontal = null;
+  }, { passive: true });
+
+  cfWrap.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchStartX;
+    const dy = touch.clientY - touchStartY;
+
+    if (isHorizontal === null) {
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 6) {
+        isHorizontal = false;
+        isDragging = false;
+        return;
+      }
+      if (Math.abs(dx) > 6) {
+        isHorizontal = true;
+        cfContainer.classList.add('dragging');
+      }
+    }
+
+    if (!isHorizontal) return;
+
+    const now = performance.now();
+    const dt = now - lastTouchTime;
+    if (dt > 8) {
+      velocity = (touch.clientX - lastTouchX) / dt;
+      lastTouchX = touch.clientX;
+      lastTouchTime = now;
+    }
+
+    dragShift = dx / 170;
+    requestAnimationFrame(() => updatePoolCards(dragShift));
+  }, { passive: true });
+
+  const endDrag = () => {
+    if (!isDragging && !cfContainer.classList.contains('dragging')) return;
+    isDragging = false;
+    cfContainer.classList.remove('dragging');
+
+    let target = cfActive;
+    if (Math.abs(velocity) > 0.35) {
+      target -= Math.sign(velocity);
+    } else if (Math.abs(dragShift) > 0.35) {
+      target -= Math.sign(dragShift);
+    }
+    dragShift = 0;
+    setCfActive(target);
+  };
+
+  cfWrap.addEventListener('touchend', endDrag);
+  cfWrap.addEventListener('touchcancel', endDrag);
 }
 let resizeTimer;
 addEventListener('resize', () => {
