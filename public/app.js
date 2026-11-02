@@ -24,21 +24,113 @@ function tick() {
   $('daysNum').textContent = days.toLocaleString('vi-VN');
   $('breakdown').textContent =
     `${months} tháng ${restDays} ngày · ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
+  const cm = $('chipMonths'), cd = $('chipDays'), ch = $('chipHours'), cmin = $('chipMins'), cs = $('chipSecs');
+  if (cm) cm.textContent = months;
+  if (cd) cd.textContent = restDays;
+  if (ch) ch.textContent = p(now.getHours());
+  if (cmin) cmin.textContent = p(now.getMinutes());
+  if (cs) cs.textContent = p(now.getSeconds());
 }
 tick();
 setInterval(tick, 1000);
 
 /* ---------- Nhạc ---------- */
 const music = $('music');
-$('musicBtn').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
+const musicBtn = $('musicBtn');
+function setMusicUi(playing) {
+  musicBtn.classList.toggle('playing', playing);
+  musicBtn.setAttribute('aria-pressed', String(playing));
+  musicBtn.setAttribute('aria-label', playing ? 'Tắt nhạc' : 'Bật nhạc');
+}
+musicBtn.addEventListener('click', async () => {
   if (!music.src) music.src = media(musicFile);
   if (music.paused) {
-    try { await music.play(); } catch { return; }
-  } else music.pause();
-  btn.setAttribute('aria-pressed', String(!music.paused));
-  btn.setAttribute('aria-label', music.paused ? 'Bật nhạc' : 'Tắt nhạc');
+    try { await music.play(); setMusicUi(true); } catch { return; }
+  } else {
+    music.pause();
+    setMusicUi(false);
+  }
 });
+music.addEventListener('play', () => setMusicUi(true));
+music.addEventListener('pause', () => setMusicUi(false));
+
+/* ---------- Hạt lơ lửng Hero (Ambient Particles) ---------- */
+function initHeroParticles() {
+  const canvas = $('heroParticles');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  let w = (canvas.width = canvas.offsetWidth);
+  let h = (canvas.height = canvas.offsetHeight);
+
+  const particles = Array.from({ length: 26 }, () => ({
+    x: Math.random() * w,
+    y: Math.random() * h,
+    r: Math.random() * 2.8 + 1.2,
+    speedY: Math.random() * 0.5 + 0.2,
+    speedX: (Math.random() - 0.5) * 0.3,
+    alpha: Math.random() * 0.45 + 0.25,
+    heart: Math.random() > 0.65,
+    pulse: Math.random() * Math.PI,
+  }));
+
+  function drawHeart(x, y, size, a) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(size / 10, size / 10);
+    ctx.fillStyle = `rgba(255, 110, 140, ${a})`;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(-5, -5, -10, 2, 0, 10);
+    ctx.bezierCurveTo(10, 2, 5, -5, 0, 0);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  let active = true;
+  function loop() {
+    if (!active) return;
+    ctx.clearRect(0, 0, w, h);
+    for (const p of particles) {
+      p.y -= p.speedY;
+      p.x += p.speedX;
+      p.pulse += 0.02;
+      const currentAlpha = Math.max(0.1, p.alpha + Math.sin(p.pulse) * 0.15);
+
+      if (p.heart) {
+        drawHeart(p.x, p.y, p.r * 2.6, currentAlpha);
+      } else {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 225, 230, ${currentAlpha})`;
+        ctx.shadowColor = 'rgba(255, 120, 150, 0.4)';
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      if (p.y < -10) { p.y = h + 10; p.x = Math.random() * w; }
+      if (p.x < -10) p.x = w + 10;
+      if (p.x > w + 10) p.x = -10;
+    }
+    requestAnimationFrame(loop);
+  }
+
+  const resize = () => {
+    w = canvas.width = canvas.offsetWidth;
+    h = canvas.height = canvas.offsetHeight;
+  };
+  window.addEventListener('resize', resize, { passive: true });
+
+  const obs = new IntersectionObserver(([entry]) => {
+    active = entry.isIntersecting;
+    if (active) requestAnimationFrame(loop);
+  }, { threshold: 0.05 });
+  obs.observe($('hero'));
+}
+initHeroParticles();
 
 /* ---------- Ảnh (nhóm theo tháng) ---------- */
 const photoState = { all: [], list: [], sections: [], cols: 0 };
