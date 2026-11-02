@@ -54,83 +54,387 @@ musicBtn.addEventListener('click', async () => {
 music.addEventListener('play', () => setMusicUi(true));
 music.addEventListener('pause', () => setMusicUi(false));
 
-/* ---------- Hạt lơ lửng Hero (Ambient Particles) ---------- */
-function initHeroParticles() {
-  const canvas = $('heroParticles');
+/* ---------- Background Pháo Hoa Đang Nổ (Fixed Single-Screen Fireworks) ---------- */
+function initFireworksBackground() {
+  const canvas = $('fireworksCanvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  let w = (canvas.width = canvas.offsetWidth);
-  let h = (canvas.height = canvas.offsetHeight);
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const particles = Array.from({ length: 26 }, () => ({
-    x: Math.random() * w,
-    y: Math.random() * h,
-    r: Math.random() * 2.8 + 1.2,
-    speedY: Math.random() * 0.5 + 0.2,
-    speedX: (Math.random() - 0.5) * 0.3,
-    alpha: Math.random() * 0.45 + 0.25,
-    heart: Math.random() > 0.65,
-    pulse: Math.random() * Math.PI,
-  }));
+  let w = window.innerWidth;
+  let h = window.innerHeight;
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-  function drawHeart(x, y, size, a) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(size / 10, size / 10);
-    ctx.fillStyle = `rgba(255, 110, 140, ${a})`;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(-5, -5, -10, 2, 0, 10);
-    ctx.bezierCurveTo(10, 2, 5, -5, 0, 0);
-    ctx.fill();
-    ctx.restore();
+  function resize() {
+    w = window.innerWidth;
+    h = window.innerHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize, { passive: true });
+
+  // Palette lãng mạn dành riêng cho web kỷ niệm tình yêu
+  const PALETTES = [
+    // 1. Hồng cánh sen / Rose Gold rực rỡ
+    { h: 342, s: 95, l: 68, head: '#ff5485', glow: '#ff2d6c' },
+    // 2. Vàng hoàng kim / Champagne lung linh
+    { h: 42, s: 100, l: 65, head: '#ffd066', glow: '#ffb703' },
+    // 3. Đỏ san hô / Ruby quyến rũ
+    { h: 358, s: 92, l: 66, head: '#ff5975', glow: '#e11d48' },
+    // 4. Tím mộng mơ / Lavender huyền ảo
+    { h: 290, s: 92, l: 72, head: '#e879f9', glow: '#c026d3' },
+    // 5. Lam ngọc / Băng tuyết lấp lánh
+    { h: 195, s: 95, l: 74, head: '#7dd3fc', glow: '#0284c7' },
+    // 6. Trắng ánh kim / Diamond tinh khôi
+    { h: 48, s: 80, l: 88, head: '#fef08a', glow: '#ffffff' },
+  ];
+
+  const TYPES = ['heart', 'peony', 'willow', 'ring', 'strobe', 'heart'];
+
+  const rockets = [];
+  const particles = [];
+  const ambientFlashes = [];
+
+  class Rocket {
+    constructor(startX, startY, targetX, targetY, palette, type) {
+      this.x = startX;
+      this.y = startY;
+      this.targetX = targetX;
+      this.targetY = targetY;
+      this.palette = palette;
+      this.type = type;
+
+      const dx = targetX - startX;
+      const dy = targetY - startY;
+      const dist = Math.hypot(dx, dy);
+      const speed = Math.max(10, Math.min(16.5, dist / 42));
+      const angle = Math.atan2(dy, dx);
+      this.vx = Math.cos(angle) * speed;
+      this.vy = Math.sin(angle) * speed;
+
+      this.trail = [];
+      this.maxTrail = 6;
+      this.dead = false;
+    }
+
+    update() {
+      this.trail.push({ x: this.x, y: this.y });
+      if (this.trail.length > this.maxTrail) this.trail.shift();
+
+      this.vy += 0.035;
+      this.vx *= 0.996;
+      this.x += this.vx;
+      this.y += this.vy;
+
+      if (this.vy >= -0.5 || this.y <= this.targetY) {
+        this.dead = true;
+      }
+    }
+
+    draw(c) {
+      if (this.trail.length < 2) return;
+      c.save();
+      c.beginPath();
+      c.moveTo(this.trail[0].x, this.trail[0].y);
+      for (let i = 1; i < this.trail.length; i++) {
+        c.lineTo(this.trail[i].x, this.trail[i].y);
+      }
+      c.strokeStyle = this.palette.head;
+      c.lineWidth = 2.4;
+      c.lineCap = 'round';
+      c.stroke();
+
+      // Đốm lửa sáng ở đầu quả pháo
+      c.beginPath();
+      c.arc(this.x, this.y, 2.6, 0, Math.PI * 2);
+      c.fillStyle = '#ffffff';
+      c.shadowColor = this.palette.glow;
+      c.shadowBlur = 10;
+      c.fill();
+      c.restore();
+    }
   }
 
-  let active = true;
-  function loop() {
-    if (!active) return;
-    ctx.clearRect(0, 0, w, h);
-    for (const p of particles) {
-      p.y -= p.speedY;
-      p.x += p.speedX;
-      p.pulse += 0.02;
-      const currentAlpha = Math.max(0.1, p.alpha + Math.sin(p.pulse) * 0.15);
-
-      if (p.heart) {
-        drawHeart(p.x, p.y, p.r * 2.6, currentAlpha);
-      } else {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 225, 230, ${currentAlpha})`;
-        ctx.shadowColor = 'rgba(255, 120, 150, 0.4)';
-        ctx.shadowBlur = 6;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-
-      if (p.y < -10) { p.y = h + 10; p.x = Math.random() * w; }
-      if (p.x < -10) p.x = w + 10;
-      if (p.x > w + 10) p.x = -10;
+  class Particle {
+    constructor(x, y, vx, vy, color, opts = {}) {
+      this.x = x;
+      this.y = y;
+      this.vx = vx;
+      this.vy = vy;
+      this.color = color;
+      this.alpha = 1;
+      this.decay = opts.decay || (Math.random() * 0.015 + 0.012);
+      this.gravity = opts.gravity !== undefined ? opts.gravity : 0.052;
+      this.friction = opts.friction || 0.976;
+      this.size = opts.size || (Math.random() * 2 + 1.2);
+      this.strobe = opts.strobe || false;
+      this.trail = [{ x, y }];
+      this.maxTrail = opts.maxTrail || 4;
+      this.dead = false;
     }
+
+    update() {
+      this.trail.push({ x: this.x, y: this.y });
+      if (this.trail.length > this.maxTrail) this.trail.shift();
+
+      this.vx *= this.friction;
+      this.vy *= this.friction;
+      this.vy += this.gravity;
+      this.x += this.vx;
+      this.y += this.vy;
+
+      this.alpha -= this.decay;
+      if (this.alpha <= 0) {
+        this.dead = true;
+      }
+    }
+
+    draw(c) {
+      if (this.dead || this.trail.length < 2) return;
+      const a = this.strobe ? (Math.random() > 0.28 ? this.alpha : this.alpha * 0.15) : this.alpha;
+      if (a <= 0.01) return;
+
+      c.save();
+      c.beginPath();
+      c.moveTo(this.trail[0].x, this.trail[0].y);
+      for (let i = 1; i < this.trail.length; i++) {
+        c.lineTo(this.trail[i].x, this.trail[i].y);
+      }
+      c.strokeStyle = `hsla(${this.color.h}, ${this.color.s}%, ${this.color.l}%, ${a})`;
+      c.lineWidth = this.size;
+      c.lineCap = 'round';
+      c.stroke();
+
+      c.beginPath();
+      c.arc(this.x, this.y, this.size * 0.65, 0, Math.PI * 2);
+      c.fillStyle = `hsla(${this.color.h}, ${Math.max(0, this.color.s - 25)}%, 92%, ${a})`;
+      c.fill();
+      c.restore();
+    }
+  }
+
+  function explode(x, y, palette, type) {
+    ambientFlashes.push({
+      x,
+      y,
+      radius: Math.min(w * 0.42, 260),
+      alpha: 0.2,
+      color: palette.head,
+    });
+
+    const result = [];
+    if (type === 'heart') {
+      // Pháo hoa hình trái tim tình yêu lãng mạn
+      const count = 56;
+      for (let i = 0; i < count; i++) {
+        const t = (i / count) * Math.PI * 2;
+        const hx = 16 * Math.pow(Math.sin(t), 3);
+        const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+        const speed = Math.random() * 0.22 + 0.88;
+        const vx = (hx / 16) * 4.8 * speed;
+        const vy = (hy / 16) * 4.8 * speed;
+        result.push(new Particle(x, y, vx, vy, palette, {
+          size: Math.random() * 2 + 1.3,
+          decay: Math.random() * 0.012 + 0.011,
+          gravity: 0.038,
+          friction: 0.98,
+          maxTrail: 5,
+        }));
+      }
+      // Đốm kim tuyến lung linh ở tâm trái tim
+      for (let i = 0; i < 16; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spd = Math.random() * 1.8;
+        result.push(new Particle(x, y, Math.cos(angle) * spd, Math.sin(angle) * spd, { h: 45, s: 95, l: 82 }, {
+          size: 1.5,
+          decay: Math.random() * 0.02 + 0.018,
+          gravity: 0.03,
+        }));
+      }
+    } else if (type === 'willow') {
+      // Pháo hoa mưa sao / liễu rủ vàng óng
+      const count = 68;
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 5.2 + 1.4;
+        result.push(new Particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, palette, {
+          size: Math.random() * 1.8 + 1,
+          decay: Math.random() * 0.009 + 0.007,
+          gravity: 0.065,
+          friction: 0.966,
+          maxTrail: 6,
+        }));
+      }
+    } else if (type === 'ring') {
+      // Pháo hoa vòng tròn kép hai tầng màu
+      const count = 46;
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2;
+        const speed = 4.8 + (Math.random() - 0.5) * 0.35;
+        result.push(new Particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, palette, {
+          size: 2.2,
+          decay: 0.013,
+          gravity: 0.045,
+          friction: 0.98,
+          maxTrail: 4,
+        }));
+      }
+      const innerColor = { h: 42, s: 100, l: 72 };
+      for (let i = 0; i < 28; i++) {
+        const angle = (i / 28) * Math.PI * 2;
+        const speed = 2.7 + (Math.random() - 0.5) * 0.3;
+        result.push(new Particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, innerColor, {
+          size: 1.8,
+          decay: 0.015,
+          gravity: 0.04,
+          friction: 0.98,
+        }));
+      }
+    } else if (type === 'strobe') {
+      // Pháo hoa lách tách nhấp nháy
+      const count = 64;
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 6.2 + 1.5;
+        result.push(new Particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, palette, {
+          size: Math.random() * 2 + 1.2,
+          decay: Math.random() * 0.014 + 0.012,
+          strobe: true,
+          gravity: 0.05,
+          friction: 0.975,
+        }));
+      }
+    } else {
+      // Pháo hoa cầu tròn peony cổ điển nở rộ
+      const count = 68;
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.pow(Math.random(), 0.5) * 6.2 + 1.2;
+        result.push(new Particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, palette, {
+          size: Math.random() * 2 + 1.2,
+          decay: Math.random() * 0.015 + 0.012,
+          gravity: 0.048,
+          friction: 0.978,
+        }));
+      }
+    }
+    return result;
+  }
+
+  function launchAuto() {
+    if (particles.length > 400) return;
+    const startX = w * (0.12 + Math.random() * 0.76);
+    const startY = h + 10;
+    const targetX = startX + (Math.random() - 0.5) * (w * 0.28);
+    const targetY = h * (0.12 + Math.random() * 0.34);
+    const palette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+    const type = TYPES[Math.floor(Math.random() * TYPES.length)];
+    rockets.push(new Rocket(startX, startY, targetX, targetY, palette, type));
+  }
+
+  function launchTo(targetX, targetY) {
+    if (particles.length > 450) return;
+    const startX = Math.max(20, Math.min(w - 20, targetX + (Math.random() - 0.5) * 80));
+    const startY = h + 10;
+    const palette = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+    const type = TYPES[Math.floor(Math.random() * TYPES.length)];
+    rockets.push(new Rocket(startX, startY, targetX, targetY, palette, type));
+  }
+
+  // Tương tác click / tap trên nền trống để bắn pháo hoa
+  window.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button, a, input, textarea, select, [role="tab"], dialog, .card, .chip, .coverflow-btn, .lock-card, .tile')) {
+      return;
+    }
+    launchTo(e.clientX, e.clientY);
+  }, { passive: true });
+
+  let active = true;
+  let lastLaunchTime = 0;
+  let nextLaunchInterval = 850;
+
+  function loop(now) {
+    if (!active) return;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Xoá vết mờ dần (trail effect)
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.globalCompositeOperation = 'lighter';
+
+    // Hiệu ứng ánh sáng loé bầu trời khi nổ
+    for (let i = ambientFlashes.length - 1; i >= 0; i--) {
+      const f = ambientFlashes[i];
+      const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius);
+      g.addColorStop(0, `rgba(255, 255, 255, ${f.alpha * 0.7})`);
+      g.addColorStop(0.35, `rgba(255, 170, 200, ${f.alpha * 0.4})`);
+      g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+      ctx.fill();
+      f.alpha -= 0.022;
+      if (f.alpha <= 0) ambientFlashes.splice(i, 1);
+    }
+
+    // Cập nhật & vẽ tên lửa phóng lên
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const r = rockets[i];
+      r.update();
+      r.draw(ctx);
+      if (r.dead) {
+        const newParticles = explode(r.x, r.y, r.palette, r.type);
+        particles.push(...newParticles);
+        rockets.splice(i, 1);
+      }
+    }
+
+    // Cập nhật & vẽ các hạt pháo nổ
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.update();
+      p.draw(ctx);
+      if (p.dead) particles.splice(i, 1);
+    }
+
+    // Bắn pháo hoa tự động theo chu kỳ
+    if (!reducedMotion && now - lastLaunchTime > nextLaunchInterval) {
+      lastLaunchTime = now;
+      launchAuto();
+      // 28% khả năng bắn thêm một quả kế tiếp tạo màn bắn đôi rực rỡ
+      if (Math.random() < 0.28) {
+        setTimeout(() => { if (active) launchAuto(); }, 190);
+      }
+      nextLaunchInterval = Math.random() * 650 + 750;
+    }
+
     requestAnimationFrame(loop);
   }
 
-  const resize = () => {
-    w = canvas.width = canvas.offsetWidth;
-    h = canvas.height = canvas.offsetHeight;
-  };
-  window.addEventListener('resize', resize, { passive: true });
+  // Tạm dừng khi tab ẩn để tiết kiệm pin/GPU
+  document.addEventListener('visibilitychange', () => {
+    active = !document.hidden;
+    if (active) {
+      lastLaunchTime = performance.now();
+      requestAnimationFrame(loop);
+    }
+  });
 
-  const obs = new IntersectionObserver(([entry]) => {
-    active = entry.isIntersecting;
-    if (active) requestAnimationFrame(loop);
-  }, { threshold: 0.05 });
-  obs.observe($('hero'));
+  // Bắt đầu ngay 1 phát chào mừng
+  launchAuto();
+  requestAnimationFrame(loop);
 }
-initHeroParticles();
+initFireworksBackground();
 
 /* ---------- 3D Hero Parallax Tilt ---------- */
 function initHero3DTilt() {

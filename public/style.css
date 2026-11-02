@@ -1,5 +1,34 @@
 :root {
-  /* Dynamic Romantic Palette */
+  /* Dynamic Romantic Night Palette (Dark-First for Fireworks) */
+  --bg: #110d0f;
+  --bg-gradient: radial-gradient(120% 80% at 50% 0%, #1f1317 0%, #110d0f 50%, #0d0a0b 100%);
+  --surface: #1a1417;
+  --surface-glass: rgba(26, 20, 23, 0.78);
+  --border-glass: rgba(255, 255, 255, 0.12);
+  --ink: #fbf6f7;
+  --muted: #a6989d;
+  --line: #2d2226;
+  --accent: #fb7185;
+  --accent-hover: #f43f5e;
+  --accent-light: rgba(251, 113, 133, 0.15);
+  --accent-gradient: linear-gradient(135deg, #fb7185 0%, #f43f5e 60%, #e11d48 100%);
+  --accent-ink: #190509;
+  --rose-gold: #f4a4a8;
+  --gold-gradient: linear-gradient(135deg, #ffffff 0%, #ffd1dc 100%);
+  --danger: #f2b8b5;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-lg: 24px;
+  --gutter: 20px;
+  --serif: "Playfair Display", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
+  --card-shadow-hover: 0 20px 45px -10px rgba(251, 113, 133, 0.25), 0 0 0 1px rgba(251, 113, 133, 0.3);
+  --glass-shadow: 0 25px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
   --bg: #fdfaf8;
   --bg-gradient: radial-gradient(120% 80% at 50% 0%, #fff3f5 0%, #fdfaf8 50%, #faf3f0 100%);
   --surface: #ffffff;
@@ -16,49 +45,44 @@
   --rose-gold: #c97a7e;
   --gold-gradient: linear-gradient(135deg, #fff7eb 0%, #ffd1dc 100%);
   --danger: #b3261e;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --radius-lg: 24px;
-  --gutter: 20px;
-  --serif: "Playfair Display", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --card-shadow: 0 10px 30px -5px rgba(216, 58, 86, 0.08), 0 4px 12px rgba(0, 0, 0, 0.03);
   --card-shadow-hover: 0 20px 40px -10px rgba(216, 58, 86, 0.22), 0 8px 16px rgba(0, 0, 0, 0.06);
   --glass-shadow: 0 20px 50px rgba(20, 10, 14, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.2) inset;
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #110d0f;
-    --bg-gradient: radial-gradient(120% 80% at 50% 0%, #1f1317 0%, #110d0f 50%, #0d0a0b 100%);
-    --surface: #1a1417;
-    --surface-glass: rgba(26, 20, 23, 0.78);
-    --border-glass: rgba(255, 255, 255, 0.12);
-    --ink: #fbf6f7;
-    --muted: #a6989d;
-    --line: #2d2226;
-    --accent: #fb7185;
-    --accent-hover: #f43f5e;
-    --accent-light: rgba(251, 113, 133, 0.15);
-    --accent-gradient: linear-gradient(135deg, #fb7185 0%, #f43f5e 60%, #e11d48 100%);
-    --accent-ink: #190509;
-    --rose-gold: #f4a4a8;
-    --gold-gradient: linear-gradient(135deg, #ffffff 0%, #ffd1dc 100%);
-    --danger: #f2b8b5;
-    --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
-    --card-shadow-hover: 0 20px 45px -10px rgba(251, 113, 133, 0.25), 0 0 0 1px rgba(251, 113, 133, 0.3);
-    --glass-shadow: 0 25px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-    color-scheme: dark;
-  }
-}
-
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 72px; }
 body {
-  margin: 0; background: var(--bg); background-image: var(--bg-gradient); color: var(--ink);
-  font: 16px/1.65 var(--sans); -webkit-font-smoothing: antialiased;
+  margin: 0;
+  background-color: #0d090b;
+  background-image: radial-gradient(120% 90% at 50% 10%, #1c1117 0%, #0f0a0d 55%, #080507 100%);
+  background-attachment: fixed;
+  color: var(--ink);
+  font: 16px/1.65 var(--sans);
+  -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+}
+
+/* Fixed Single-Screen Fireworks Background */
+.fireworks-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+main {
+  position: relative;
+  z-index: 1;
+}
+
+.footer {
+  position: relative;
+  z-index: 1;
 }
 h1, h2, h3, p { margin: 0; }
 a { color: inherit; }
@@ -160,15 +184,12 @@ img { display: block; max-width: 100%; }
 .hero {
   position: relative; min-height: 92svh; display: grid; place-items: center;
   color: #fff; text-align: center; padding: 104px var(--gutter) 72px;
-  background: #2a1c20 center / cover no-repeat; overflow: hidden;
+  background: transparent center / cover no-repeat; overflow: hidden;
 }
 .hero::before {
   content: ""; position: absolute; inset: 0; z-index: 1;
-  background: linear-gradient(180deg, rgba(16,11,13,.42) 0%, rgba(16,11,13,.35) 45%, rgba(16,11,13,.82) 100%);
-  backdrop-filter: blur(1.5px);
-}
-.hero-particles {
-  position: absolute; inset: 0; z-index: 2; pointer-events: none; width: 100%; height: 100%;
+  background: radial-gradient(circle at 50% 40%, rgba(20, 13, 17, 0.2) 0%, rgba(12, 8, 10, 0.55) 100%);
+  pointer-events: none;
 }
 .hero-inner { position: relative; z-index: 3; width: min(560px, 100%); margin: 0 auto; perspective: 1200px; }
 
@@ -522,9 +543,10 @@ img { display: block; max-width: 100%; }
 
 /* ---------- Notes Section (Love Letters) ---------- */
 .card {
-  background: var(--surface); border: 1px solid var(--line);
+  background: var(--surface-glass); border: 1px solid var(--border-glass);
   border-radius: var(--radius); padding: 22px; display: grid; gap: 14px;
   box-shadow: var(--card-shadow);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
 .row { display: flex; gap: 12px; align-items: center; }
 .row.end { justify-content: space-between; }
@@ -624,7 +646,8 @@ textarea { resize: vertical; min-height: 96px; line-height: 1.6; }
 /* ---------- Footer ---------- */
 .footer {
   padding: 64px var(--gutter) 48px; border-top: 1px solid var(--line);
-  margin-top: 48px; background: color-mix(in srgb, var(--bg) 95%, #fff 5%);
+  margin-top: 48px; background: color-mix(in srgb, var(--bg) 80%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
 
 /* ---------- Native Lightbox Modal ---------- */
