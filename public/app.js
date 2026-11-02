@@ -132,6 +132,46 @@ function initHeroParticles() {
 }
 initHeroParticles();
 
+/* ---------- 3D Hero Parallax Tilt ---------- */
+function initHero3DTilt() {
+  const card = $('heroCard');
+  const glare = $('heroCardGlare');
+  if (!card) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  let ticking = false;
+  const onMove = (e) => {
+    const rect = card.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = (clientX - rect.left) / rect.width - 0.5;
+    const y = (clientY - rect.top) / rect.height - 0.5;
+
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        card.style.transform = `perspective(1200px) rotateX(${-y * 22}deg) rotateY(${x * 22}deg) translateY(-4px)`;
+        if (glare) {
+          glare.style.opacity = '1';
+          glare.style.background = `radial-gradient(circle at ${(x + 0.5) * 100}% ${(y + 0.5) * 100}%, rgba(255,255,255,0.45) 0%, transparent 60%)`;
+        }
+        ticking = false;
+      });
+      ticking = true;
+    }
+  };
+
+  const onLeave = () => {
+    card.style.transform = 'perspective(1200px) rotateX(0deg) rotateY(0deg) translateY(0)';
+    if (glare) glare.style.opacity = '0';
+  };
+
+  card.addEventListener('mousemove', onMove);
+  card.addEventListener('mouseleave', onLeave);
+  card.addEventListener('touchmove', onMove, { passive: true });
+  card.addEventListener('touchend', onLeave);
+}
+initHero3DTilt();
+
 /* ---------- Ảnh (nhóm theo tháng) ---------- */
 const photoState = { all: [], list: [], sections: [], cols: 0 };
 const NO_DATE = 'none';
@@ -163,6 +203,7 @@ async function loadPhotos() {
     });
     photoState.all = [...statics, ...(remote.photos ?? [])];
     render();
+    initCoverflow(photoState.all);
   } catch (err) {
     console.error(err);
     $('photoError').textContent = 'Không tải được danh sách ảnh.';
@@ -248,7 +289,144 @@ function makeTile(p, index) {
   btn.dataset.id = p.id;
   if (selected.has(p.id)) btn.classList.add('selected');
   btn.addEventListener('click', () => (selecting ? toggleSelect(p, btn) : openLightbox(index)));
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    btn.addEventListener('mousemove', (e) => {
+      const rect = btn.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width - 0.5;
+      const y = (e.clientY - rect.top) / rect.height - 0.5;
+      btn.style.transform = `perspective(800px) rotateX(${-y * 18}deg) rotateY(${x * 18}deg) translateZ(16px) scale(1.03)`;
+    });
+    btn.addEventListener('mouseleave', () => {
+      btn.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) translateZ(0) scale(1)';
+    });
+  }
   return btn;
+}
+
+/* ---------- 3D Coverflow Controller ---------- */
+let coverflowItems = [];
+let cfActive = 0;
+
+function initCoverflow(photos) {
+  const container = $('coverflow');
+  const dotsContainer = $('cfDots');
+  if (!container || !photos || !photos.length) return;
+
+  coverflowItems = photos.slice(0, 12);
+  cfActive = Math.min(2, Math.floor(coverflowItems.length / 2));
+
+  container.innerHTML = '';
+  if (dotsContainer) dotsContainer.innerHTML = '';
+
+  coverflowItems.forEach((p, idx) => {
+    const el = document.createElement('div');
+    el.className = 'cf-item';
+    el.dataset.index = idx;
+
+    const img = document.createElement('img');
+    img.src = media(`full/${p.id}.webp`);
+    img.alt = p.caption || '';
+    img.loading = 'lazy';
+
+    const cap = document.createElement('div');
+    cap.className = 'cf-caption';
+    cap.textContent = p.caption || (p.taken ? fmtDate.format(new Date(p.taken)) : 'Khoảnh khắc');
+
+    el.append(img, cap);
+    el.addEventListener('click', () => {
+      if (idx === cfActive) {
+        const origIdx = photoState.list.findIndex((it) => it.id === p.id);
+        openLightbox(origIdx >= 0 ? origIdx : 0);
+      } else {
+        setCfActive(idx);
+      }
+    });
+    container.append(el);
+
+    if (dotsContainer) {
+      const dot = document.createElement('span');
+      dot.className = `coverflow-dot ${idx === cfActive ? 'active' : ''}`;
+      dot.addEventListener('click', () => setCfActive(idx));
+      dotsContainer.append(dot);
+    }
+  });
+
+  updateCoverflowPositions();
+
+  $('cfPrev')?.addEventListener('click', () => setCfActive(cfActive - 1));
+  $('cfNext')?.addEventListener('click', () => setCfActive(cfActive + 1));
+
+  let startX = null;
+  const wrap = $('coverflowWrap');
+  if (wrap) {
+    wrap.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
+    wrap.addEventListener('touchend', (e) => {
+      if (startX === null) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 40) setCfActive(cfActive + (dx < 0 ? 1 : -1));
+      startX = null;
+    });
+  }
+}
+
+function setCfActive(idx) {
+  if (!coverflowItems.length) return;
+  cfActive = (idx + coverflowItems.length) % coverflowItems.length;
+  updateCoverflowPositions();
+}
+
+function updateCoverflowPositions() {
+  const container = $('coverflow');
+  if (!container) return;
+  const items = container.querySelectorAll('.cf-item');
+  const dots = $('cfDots')?.querySelectorAll('.coverflow-dot');
+  const len = items.length;
+
+  items.forEach((item, i) => {
+    let diff = i - cfActive;
+    if (diff > len / 2) diff -= len;
+    if (diff < -len / 2) diff += len;
+
+    item.classList.toggle('active', diff === 0);
+
+    if (diff === 0) {
+      item.style.transform = 'translateX(0) translateZ(160px) rotateY(0deg) scale(1.08)';
+      item.style.zIndex = '15';
+      item.style.opacity = '1';
+      item.style.filter = 'brightness(1)';
+    } else if (diff === -1) {
+      item.style.transform = 'translateX(-190px) translateZ(10px) rotateY(38deg) scale(0.92)';
+      item.style.zIndex = '10';
+      item.style.opacity = '0.9';
+      item.style.filter = 'brightness(0.85)';
+    } else if (diff === 1) {
+      item.style.transform = 'translateX(190px) translateZ(10px) rotateY(-38deg) scale(0.92)';
+      item.style.zIndex = '10';
+      item.style.opacity = '0.9';
+      item.style.filter = 'brightness(0.85)';
+    } else if (diff === -2) {
+      item.style.transform = 'translateX(-330px) translateZ(-110px) rotateY(48deg) scale(0.78)';
+      item.style.zIndex = '5';
+      item.style.opacity = '0.6';
+      item.style.filter = 'brightness(0.65)';
+    } else if (diff === 2) {
+      item.style.transform = 'translateX(330px) translateZ(-110px) rotateY(-48deg) scale(0.78)';
+      item.style.zIndex = '5';
+      item.style.opacity = '0.6';
+      item.style.filter = 'brightness(0.65)';
+    } else {
+      const sign = diff < 0 ? -1 : 1;
+      item.style.transform = `translateX(${sign * 420}px) translateZ(-240px) rotateY(${-sign * 55}deg) scale(0.65)`;
+      item.style.zIndex = '1';
+      item.style.opacity = '0';
+      item.style.pointerEvents = 'none';
+      item.style.filter = 'brightness(0.5)';
+    }
+  });
+
+  if (dots) {
+    dots.forEach((dot, idx) => dot.classList.toggle('active', idx === cfActive));
+  }
 }
 
 let resizeTimer;
