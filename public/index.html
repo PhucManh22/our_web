@@ -80,24 +80,50 @@
         <ul class="upload-list" id="uploadList"></ul>
       </div>
 
-      <!-- 3D Coverflow Showcase -->
-      <div class="coverflow-section" id="coverflowSection">
-        <div class="coverflow-head">
-          <span class="coverflow-badge">✨ KHÔNG GIAN 3D</span>
-          <p class="small muted">Vuốt hoặc nhấn ảnh hai bên để xoay trong không gian 3 chiều</p>
-        </div>
-        <div class="coverflow-wrap" id="coverflowWrap">
-          <div class="coverflow" id="coverflow"></div>
-          <div class="coverflow-controls">
-            <button class="coverflow-btn" id="cfPrev" type="button" aria-label="Ảnh trước">‹</button>
-            <div class="coverflow-dots" id="cfDots"></div>
-            <button class="coverflow-btn" id="cfNext" type="button" aria-label="Ảnh sau">›</button>
-          </div>
-        </div>
+      <!-- Danh sách Album theo Tháng (Gom nhóm ảnh) -->
+      <div class="months-selector-wrap">
+        <div class="months-selector-label">Chọn tháng kỷ niệm để mở ảnh:</div>
+        <nav class="chips" id="chips" aria-label="Chọn tháng kỷ niệm"></nav>
       </div>
 
-      <nav class="chips" id="chips" aria-label="Nhảy tới tháng"></nav>
-      <div id="months"></div>
+      <!-- Khung hiển thị ảnh của Tháng được chọn -->
+      <div class="active-month-view" id="activeMonthView">
+        <div class="month-view-head">
+          <div class="month-view-title-wrap">
+            <h3 id="activeMonthTitle">—</h3>
+            <span class="muted small" id="activeMonthCount">—</span>
+          </div>
+          <div class="view-switcher" role="tablist" aria-label="Chế độ xem">
+            <button class="vs-btn active" id="view3dBtn" type="button" role="tab" aria-selected="true">
+              <span>✨ Không gian 3D</span>
+            </button>
+            <button class="vs-btn" id="viewGridBtn" type="button" role="tab" aria-selected="false">
+              <span>⊞ Lưới ảnh</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3D Coverflow Viewer cho toàn bộ ảnh trong tháng -->
+        <div class="coverflow-section" id="coverflowSection">
+          <div class="coverflow-wrap" id="coverflowWrap">
+            <div class="coverflow" id="coverflow"></div>
+            <div class="coverflow-controls">
+              <button class="coverflow-btn" id="cfPrev" type="button" aria-label="Ảnh trước">‹</button>
+              <div class="cf-scrub-wrap">
+                <span class="cf-counter" id="cfCounter">1 / 1</span>
+                <input type="range" class="cf-scrubber" id="cfScrubber" min="0" max="0" value="0" aria-label="Kéo xem ảnh 3D">
+              </div>
+              <button class="coverflow-btn" id="cfNext" type="button" aria-label="Ảnh sau">›</button>
+            </div>
+            <p class="small muted center" style="margin-top: 14px;">Vuốt hoặc kéo thanh trượt để lướt qua toàn bộ ảnh trong không gian 3D · Nhấn ảnh giữa để xem lớn</p>
+          </div>
+        </div>
+
+        <!-- Lưới ảnh (Grid) cho tháng đang chọn -->
+        <div class="grid-section" id="gridSection" hidden>
+          <div id="months"></div>
+        </div>
+      </div>
       <p class="muted center" id="photoError" hidden></p>
     </section>
 

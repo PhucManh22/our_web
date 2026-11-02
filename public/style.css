@@ -276,24 +276,91 @@ img { display: block; max-width: 100%; }
 .btn-sm { padding: 8px 18px; font-size: 14px; border-radius: 999px; }
 @media (max-width: 520px) { #photoCount { display: none; } }
 
-/* ---------- 3D Coverflow Showcase ---------- */
-.coverflow-section {
-  margin: 10px 0 36px;
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
+/* ---------- Danh sách Album theo Tháng (Chips) ---------- */
+.months-selector-wrap {
+  margin: 8px 0 24px;
+}
+.months-selector-label {
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+}
+.chips {
+  display: flex; gap: 12px; overflow-x: auto; padding: 6px 2px 14px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; display: inline-flex; align-items: center; gap: 10px;
+  padding: 10px 20px; border: 1.5px solid var(--line); border-radius: 999px;
+  background: var(--surface-glass); backdrop-filter: blur(12px);
+  color: var(--ink); font: inherit; font-size: 15px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  transition: all .25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.chip small {
+  padding: 3px 9px; border-radius: 999px;
+  background: var(--accent-light); color: var(--accent);
+  font-size: 12px; font-weight: 700;
+  transition: all .25s ease;
+}
+.chip:hover {
+  border-color: var(--accent); transform: translateY(-3px);
+  box-shadow: 0 8px 22px rgba(225, 29, 72, 0.16);
+}
+.chip.active {
+  border-color: var(--accent); background: var(--accent-light); color: var(--accent);
+  box-shadow: 0 8px 24px rgba(225, 29, 72, 0.25);
+  transform: translateY(-2px);
+}
+.chip.active small {
+  background: var(--accent); color: #fff;
+}
+
+/* ---------- Active Month View (Khung hiển thị tháng đang mở) ---------- */
+.active-month-view {
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-lg);
-  padding: 28px 16px 24px;
+  padding: 28px 20px 24px;
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   box-shadow: var(--card-shadow);
-  overflow: hidden;
+  margin-bottom: 36px;
+  animation: fade-in-up .35s ease-out;
 }
-.coverflow-head { text-align: center; margin-bottom: 24px; }
-.coverflow-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 16px; border-radius: 999px;
-  background: var(--accent-light); color: var(--accent);
-  font-size: 11.5px; font-weight: 700; letter-spacing: 0.16em;
-  text-transform: uppercase;
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.month-view-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 22px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--line); flex-wrap: wrap;
+}
+.month-view-title-wrap {
+  display: flex; align-items: baseline; gap: 12px;
+}
+.month-view-title-wrap h3 {
+  margin: 0; font: 700 clamp(24px, 4.5vw, 32px)/1.2 var(--serif); letter-spacing: -.02em;
+}
+.view-switcher {
+  display: inline-flex; border: 1px solid var(--line); border-radius: 999px;
+  overflow: hidden; background: var(--bg); padding: 3px; gap: 2px;
+}
+.vs-btn {
+  padding: 8px 20px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--muted); font: inherit; font-size: 13.5px;
+  font-weight: 600; cursor: pointer; transition: all .25s ease;
+}
+.vs-btn.active {
+  background: var(--accent-gradient); color: #fff;
+  box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35);
+}
+
+/* ---------- 3D Coverflow Showcase ---------- */
+.coverflow-section {
+  padding: 10px 0; overflow: hidden;
 }
 .coverflow-wrap {
   position: relative; width: 100%;
@@ -303,7 +370,7 @@ img { display: block; max-width: 100%; }
   touch-action: pan-y;
 }
 .coverflow {
-  position: relative; width: 100%; height: 380px;
+  position: relative; width: 100%; height: 390px;
   transform-style: preserve-3d;
   display: flex; align-items: center; justify-content: center;
 }
@@ -312,7 +379,7 @@ img { display: block; max-width: 100%; }
   border-radius: 18px; overflow: hidden; cursor: pointer;
   background: #201519; border: 2.5px solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-  transition: transform 0.45s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.45s ease, filter 0.45s ease, box-shadow 0.45s ease;
+  transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, filter 0.4s ease, box-shadow 0.4s ease;
   transform-style: preserve-3d;
   -webkit-box-reflect: below 12px linear-gradient(transparent 72%, rgba(0,0,0,0.25));
 }
@@ -328,14 +395,14 @@ img { display: block; max-width: 100%; }
 }
 .cf-item.active {
   border-color: #fff;
-  box-shadow: 0 25px 60px rgba(244, 63, 94, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  box-shadow: 0 25px 60px rgba(244, 63, 94, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
 }
 .coverflow-controls {
-  display: flex; align-items: center; justify-content: center; gap: 18px;
-  margin-top: 32px; z-index: 10;
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin-top: 32px; z-index: 10; width: 100%; max-width: 540px;
 }
 .coverflow-btn {
-  width: 44px; height: 44px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%; flex: none;
   border: 1px solid var(--line); background: var(--surface);
   color: var(--ink); font-size: 24px; line-height: 1;
   display: grid; place-items: center; cursor: pointer;
@@ -346,41 +413,34 @@ img { display: block; max-width: 100%; }
   background: var(--accent); color: #fff; border-color: var(--accent);
   transform: scale(1.1); box-shadow: 0 6px 20px rgba(244, 63, 94, 0.35);
 }
-.coverflow-dots { display: flex; gap: 7px; align-items: center; }
-.coverflow-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: color-mix(in srgb, var(--ink) 25%, transparent);
-  transition: all .25s ease; cursor: pointer;
+.cf-scrub-wrap {
+  display: flex; align-items: center; gap: 12px; flex: 1;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
-.coverflow-dot.active { width: 24px; border-radius: 999px; background: var(--accent); }
+.cf-counter {
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--accent); min-width: 68px; text-align: center;
+}
+.cf-scrubber {
+  flex: 1; height: 6px; -webkit-appearance: none; appearance: none;
+  background: var(--line); border-radius: 999px; outline: none; cursor: pointer;
+  accent-color: var(--accent);
+}
+.cf-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--accent); border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.45); cursor: grab;
+  transition: transform .15s ease;
+}
+.cf-scrubber::-webkit-slider-thumb:active {
+  transform: scale(1.25); cursor: grabbing;
+}
 @media (max-width: 600px) {
   .coverflow { height: 320px; }
   .cf-item { width: 210px; height: 280px; }
-}
-
-/* ---------- Chips (Nhảy tới tháng) ---------- */
-.chips {
-  display: flex; gap: 10px; overflow-x: auto; padding: 6px 2px 14px; margin-bottom: 12px;
-  scrollbar-width: none; -webkit-overflow-scrolling: touch;
-}
-.chips::-webkit-scrollbar { display: none; }
-.chip {
-  flex: none; display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px;
-  background: var(--surface-glass); backdrop-filter: blur(10px);
-  color: var(--ink); font: inherit; font-size: 14px; font-weight: 500;
-  cursor: pointer; text-decoration: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-  transition: all .25s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.chip small {
-  padding: 2px 7px; border-radius: 999px;
-  background: var(--accent-light); color: var(--accent);
-  font-size: 11px; font-weight: 600;
-}
-.chip:hover {
-  border-color: var(--accent); transform: translateY(-3px);
-  box-shadow: 0 8px 18px rgba(216, 58, 86, 0.15);
+  .coverflow-controls { gap: 10px; }
+  .cf-scrub-wrap { padding: 4px 12px; }
 }
 
 /* ---------- Timeline & Masonry Grid ---------- */

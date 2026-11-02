@@ -203,12 +203,40 @@ async function loadPhotos() {
     });
     photoState.all = [...statics, ...(remote.photos ?? [])];
     render();
-    initCoverflow(photoState.all);
   } catch (err) {
     console.error(err);
     $('photoError').textContent = 'Không tải được danh sách ảnh.';
     $('photoError').hidden = false;
   }
+}
+
+let activeMonth = null;
+let currentMonthPhotos = [];
+let viewMode = '3d';
+
+function setViewMode(mode) {
+  viewMode = mode;
+  const is3d = mode === '3d';
+  $('view3dBtn')?.classList.toggle('active', is3d);
+  $('view3dBtn')?.setAttribute('aria-selected', String(is3d));
+  $('viewGridBtn')?.classList.toggle('active', !is3d);
+  $('viewGridBtn')?.setAttribute('aria-selected', String(!is3d));
+  $('coverflowSection').hidden = !is3d;
+  $('gridSection').hidden = is3d;
+  if (!is3d) layoutGrids();
+}
+
+function selectMonth(key) {
+  activeMonth = key;
+  document.querySelectorAll('#chips .chip').forEach((c) => {
+    c.classList.toggle('active', c.dataset.month === key);
+  });
+  currentMonthPhotos = photoState.groups.get(key) || [];
+  $('activeMonthTitle').textContent = monthLabel(key);
+  $('activeMonthCount').textContent = `${currentMonthPhotos.length} khoảnh khắc`;
+
+  initMonthCoverflow(currentMonthPhotos);
+  renderMonthGrid(currentMonthPhotos);
 }
 
 function render() {
@@ -218,59 +246,67 @@ function render() {
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(p);
   }
-  // Tháng mới nhất trước, "chưa rõ ngày" cuối cùng; trong tháng thì ảnh mới nhất trước
   const keys = [...groups.keys()].sort((a, b) => (a === NO_DATE) - (b === NO_DATE) || b.localeCompare(a));
   keys.forEach((k) => groups.get(k).sort((a, b) => tsOf(b) - tsOf(a) || a.id.localeCompare(b.id)));
 
+  photoState.groups = groups;
+  photoState.keys = keys;
   photoState.list = keys.flatMap((k) => groups.get(k));
   $('photoCount').textContent = `${photoState.all.length} khoảnh khắc`;
 
-  let offset = 0;
-  photoState.sections = keys.map((k) => {
-    const photos = groups.get(k);
-    const section = document.createElement('section');
-    section.className = 'month'; section.id = `m-${k}`;
-    const head = document.createElement('header'); head.className = 'month-head';
-    const h3 = document.createElement('h3'); h3.textContent = monthLabel(k);
-    const count = document.createElement('span'); count.className = 'muted small'; count.textContent = `${photos.length} ảnh`;
-    head.append(h3, count);
-    const grid = document.createElement('div'); grid.className = 'grid';
-    section.append(head, grid);
-    const entry = { key: k, photos, offset, grid, section };
-    offset += photos.length;
-    return entry;
-  });
-  $('months').replaceChildren(...photoState.sections.map((s) => s.section));
+  if (!keys.length) return;
 
   $('chips').replaceChildren(
-    ...photoState.sections.map((s) => {
-      const a = document.createElement('a');
-      a.className = 'chip'; a.href = `#m-${s.key}`;
-      a.append(monthLabel(s.key));
-      const small = document.createElement('small'); small.textContent = s.photos.length;
-      a.append(small);
-      return a;
+    ...keys.map((k) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.dataset.month = k;
+      const span = document.createElement('span');
+      span.textContent = monthLabel(k);
+      const small = document.createElement('small');
+      small.textContent = groups.get(k).length;
+      btn.append(span, small);
+      btn.addEventListener('click', () => selectMonth(k));
+      return btn;
     })
   );
+
+  $('view3dBtn').onclick = () => setViewMode('3d');
+  $('viewGridBtn').onclick = () => setViewMode('grid');
+
+  const targetMonth = activeMonth && groups.has(activeMonth) ? activeMonth : keys[0];
+  selectMonth(targetMonth);
+}
+
+function renderMonthGrid(photos) {
+  const gridContainer = $('months');
+  gridContainer.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  grid.id = 'activeMonthGrid';
+  gridContainer.appendChild(grid);
+  photoState.activeGrid = grid;
+  photoState.activePhotos = photos;
   layoutGrids();
 }
 
 const colCount = () => (innerWidth < 600 ? 2 : innerWidth < 900 ? 3 : 4);
 
 function layoutGrids() {
+  if (!photoState.activeGrid || !photoState.activePhotos) return;
   const n = colCount();
   photoState.cols = n;
-  for (const s of photoState.sections) {
-    const cols = Array.from({ length: n }, () => Object.assign(document.createElement('div'), { className: 'col' }));
-    const heights = Array(n).fill(0);
-    s.photos.forEach((p, i) => {
-      let c = 0;
-      for (let k = 1; k < n; k++) if (heights[k] < heights[c]) c = k;
-      heights[c] += p.h / p.w;
-      cols[c].append(makeTile(p, s.offset + i));
-    });
-    s.grid.replaceChildren(...cols);
-  }
+  const cols = Array.from({ length: n }, () => Object.assign(document.createElement('div'), { className: 'col' }));
+  const heights = Array(n).fill(0);
+  photoState.activePhotos.forEach((p) => {
+    let c = 0;
+    for (let k = 1; k < n; k++) if (heights[k] < heights[c]) c = k;
+    heights[c] += p.h / p.w;
+    const globalIdx = photoState.list.indexOf(p);
+    cols[c].append(makeTile(p, globalIdx >= 0 ? globalIdx : 0));
+  });
+  photoState.activeGrid.replaceChildren(...cols);
 }
 
 function makeTile(p, index) {
@@ -303,132 +339,124 @@ function makeTile(p, index) {
   return btn;
 }
 
-/* ---------- 3D Coverflow Controller ---------- */
-let coverflowItems = [];
+/* ---------- 3D Coverflow Controller (Toàn bộ ảnh trong tháng) ---------- */
+let cfPhotos = [];
 let cfActive = 0;
 
-function initCoverflow(photos) {
-  const container = $('coverflow');
-  const dotsContainer = $('cfDots');
-  if (!container || !photos || !photos.length) return;
+function initMonthCoverflow(photos) {
+  cfPhotos = photos;
+  cfActive = 0;
+  const sc = $('cfScrubber');
+  if (sc) {
+    sc.min = 0;
+    sc.max = Math.max(0, photos.length - 1);
+    sc.value = 0;
+    sc.oninput = (e) => setCfActive(Number(e.target.value));
+  }
+  $('cfCounter').textContent = `${photos.length ? 1 : 0} / ${photos.length}`;
+  renderVirtualCoverflow();
+}
 
-  coverflowItems = photos.slice(0, 12);
-  cfActive = Math.min(2, Math.floor(coverflowItems.length / 2));
+function setCfActive(idx) {
+  if (!cfPhotos.length) return;
+  cfActive = Math.max(0, Math.min(idx, cfPhotos.length - 1));
+  const sc = $('cfScrubber');
+  if (sc && Number(sc.value) !== cfActive) sc.value = cfActive;
+  $('cfCounter').textContent = `${cfActive + 1} / ${cfPhotos.length}`;
+  renderVirtualCoverflow();
+}
+
+function renderVirtualCoverflow() {
+  const container = $('coverflow');
+  if (!container || !cfPhotos.length) return;
+
+  const offsets = [-3, -2, -1, 0, 1, 2, 3];
+  const total = cfPhotos.length;
 
   container.innerHTML = '';
-  if (dotsContainer) dotsContainer.innerHTML = '';
+  offsets.forEach((offset) => {
+    let idx = cfActive + offset;
+    if (idx < 0 || idx >= total) return;
 
-  coverflowItems.forEach((p, idx) => {
+    const p = cfPhotos[idx];
     const el = document.createElement('div');
-    el.className = 'cf-item';
-    el.dataset.index = idx;
+    el.className = `cf-item ${offset === 0 ? 'active' : ''}`;
 
     const img = document.createElement('img');
-    img.src = media(`full/${p.id}.webp`);
+    img.src = media(offset === 0 ? `full/${p.id}.webp` : `thumb/${p.id}.webp`);
     img.alt = p.caption || '';
     img.loading = 'lazy';
 
     const cap = document.createElement('div');
     cap.className = 'cf-caption';
-    cap.textContent = p.caption || (p.taken ? fmtDate.format(new Date(p.taken)) : 'Khoảnh khắc');
+    cap.textContent = p.caption || (p.taken ? fmtDate.format(new Date(p.taken)) : `Ảnh ${idx + 1}`);
 
     el.append(img, cap);
+
+    if (offset === 0) {
+      el.style.transform = 'translateX(0) translateZ(160px) rotateY(0deg) scale(1.08)';
+      el.style.zIndex = '15';
+      el.style.opacity = '1';
+      el.style.filter = 'brightness(1)';
+    } else if (offset === -1) {
+      el.style.transform = 'translateX(-190px) translateZ(10px) rotateY(38deg) scale(0.92)';
+      el.style.zIndex = '10';
+      el.style.opacity = '0.9';
+      el.style.filter = 'brightness(0.85)';
+    } else if (offset === 1) {
+      el.style.transform = 'translateX(190px) translateZ(10px) rotateY(-38deg) scale(0.92)';
+      el.style.zIndex = '10';
+      el.style.opacity = '0.9';
+      el.style.filter = 'brightness(0.85)';
+    } else if (offset === -2) {
+      el.style.transform = 'translateX(-330px) translateZ(-110px) rotateY(48deg) scale(0.78)';
+      el.style.zIndex = '5';
+      el.style.opacity = '0.6';
+      el.style.filter = 'brightness(0.65)';
+    } else if (offset === 2) {
+      el.style.transform = 'translateX(330px) translateZ(-110px) rotateY(-48deg) scale(0.78)';
+      el.style.zIndex = '5';
+      el.style.opacity = '0.6';
+      el.style.filter = 'brightness(0.65)';
+    } else if (offset === -3) {
+      el.style.transform = 'translateX(-430px) translateZ(-220px) rotateY(55deg) scale(0.65)';
+      el.style.zIndex = '2';
+      el.style.opacity = '0.25';
+      el.style.filter = 'brightness(0.5)';
+    } else if (offset === 3) {
+      el.style.transform = 'translateX(430px) translateZ(-220px) rotateY(-55deg) scale(0.65)';
+      el.style.zIndex = '2';
+      el.style.opacity = '0.25';
+      el.style.filter = 'brightness(0.5)';
+    }
+
     el.addEventListener('click', () => {
-      if (idx === cfActive) {
-        const origIdx = photoState.list.findIndex((it) => it.id === p.id);
-        openLightbox(origIdx >= 0 ? origIdx : 0);
+      if (offset === 0) {
+        const globalIdx = photoState.list.indexOf(p);
+        openLightbox(globalIdx >= 0 ? globalIdx : 0);
       } else {
         setCfActive(idx);
       }
     });
+
     container.append(el);
-
-    if (dotsContainer) {
-      const dot = document.createElement('span');
-      dot.className = `coverflow-dot ${idx === cfActive ? 'active' : ''}`;
-      dot.addEventListener('click', () => setCfActive(idx));
-      dotsContainer.append(dot);
-    }
   });
-
-  updateCoverflowPositions();
-
-  $('cfPrev')?.addEventListener('click', () => setCfActive(cfActive - 1));
-  $('cfNext')?.addEventListener('click', () => setCfActive(cfActive + 1));
-
-  let startX = null;
-  const wrap = $('coverflowWrap');
-  if (wrap) {
-    wrap.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
-    wrap.addEventListener('touchend', (e) => {
-      if (startX === null) return;
-      const dx = e.changedTouches[0].clientX - startX;
-      if (Math.abs(dx) > 40) setCfActive(cfActive + (dx < 0 ? 1 : -1));
-      startX = null;
-    });
-  }
 }
 
-function setCfActive(idx) {
-  if (!coverflowItems.length) return;
-  cfActive = (idx + coverflowItems.length) % coverflowItems.length;
-  updateCoverflowPositions();
-}
+$('cfPrev')?.addEventListener('click', () => setCfActive(cfActive - 1));
+$('cfNext')?.addEventListener('click', () => setCfActive(cfActive + 1));
 
-function updateCoverflowPositions() {
-  const container = $('coverflow');
-  if (!container) return;
-  const items = container.querySelectorAll('.cf-item');
-  const dots = $('cfDots')?.querySelectorAll('.coverflow-dot');
-  const len = items.length;
-
-  items.forEach((item, i) => {
-    let diff = i - cfActive;
-    if (diff > len / 2) diff -= len;
-    if (diff < -len / 2) diff += len;
-
-    item.classList.toggle('active', diff === 0);
-
-    if (diff === 0) {
-      item.style.transform = 'translateX(0) translateZ(160px) rotateY(0deg) scale(1.08)';
-      item.style.zIndex = '15';
-      item.style.opacity = '1';
-      item.style.filter = 'brightness(1)';
-    } else if (diff === -1) {
-      item.style.transform = 'translateX(-190px) translateZ(10px) rotateY(38deg) scale(0.92)';
-      item.style.zIndex = '10';
-      item.style.opacity = '0.9';
-      item.style.filter = 'brightness(0.85)';
-    } else if (diff === 1) {
-      item.style.transform = 'translateX(190px) translateZ(10px) rotateY(-38deg) scale(0.92)';
-      item.style.zIndex = '10';
-      item.style.opacity = '0.9';
-      item.style.filter = 'brightness(0.85)';
-    } else if (diff === -2) {
-      item.style.transform = 'translateX(-330px) translateZ(-110px) rotateY(48deg) scale(0.78)';
-      item.style.zIndex = '5';
-      item.style.opacity = '0.6';
-      item.style.filter = 'brightness(0.65)';
-    } else if (diff === 2) {
-      item.style.transform = 'translateX(330px) translateZ(-110px) rotateY(-48deg) scale(0.78)';
-      item.style.zIndex = '5';
-      item.style.opacity = '0.6';
-      item.style.filter = 'brightness(0.65)';
-    } else {
-      const sign = diff < 0 ? -1 : 1;
-      item.style.transform = `translateX(${sign * 420}px) translateZ(-240px) rotateY(${-sign * 55}deg) scale(0.65)`;
-      item.style.zIndex = '1';
-      item.style.opacity = '0';
-      item.style.pointerEvents = 'none';
-      item.style.filter = 'brightness(0.5)';
-    }
+let cfStartX = null;
+const cfWrap = $('coverflowWrap');
+if (cfWrap) {
+  cfWrap.addEventListener('touchstart', (e) => { cfStartX = e.touches[0].clientX; }, { passive: true });
+  cfWrap.addEventListener('touchend', (e) => {
+    if (cfStartX === null) return;
+    const dx = e.changedTouches[0].clientX - cfStartX;
+    if (Math.abs(dx) > 35) setCfActive(cfActive + (dx < 0 ? 1 : -1));
+    cfStartX = null;
   });
-
-  if (dots) {
-    dots.forEach((dot, idx) => dot.classList.toggle('active', idx === cfActive));
-  }
 }
-
 let resizeTimer;
 addEventListener('resize', () => {
   clearTimeout(resizeTimer);
@@ -786,6 +814,7 @@ function enter() {
   $('hero').style.backgroundImage = `url("${media('hero.webp')}")`;
   loadPhotos();
 }
+window.enter = enter;
 
 function showLock(message) {
   document.body.classList.add('locked');
