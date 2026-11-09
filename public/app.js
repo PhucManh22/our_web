@@ -437,7 +437,7 @@ function initFireworksBackground() {
   launchAuto();
   requestAnimationFrame(loop);
 }
-initFireworksBackground();
+// Pháo hoa đã tắt: không chạy vòng vẽ liên tục khi cuộn.
 
 /* ---------- 3D Hero Parallax Tilt ---------- */
 function initHero3DTilt() {
@@ -477,7 +477,7 @@ function initHero3DTilt() {
   card.addEventListener('touchmove', onMove, { passive: true });
   card.addEventListener('touchend', onLeave);
 }
-initHero3DTilt();
+// Không cập nhật hiệu ứng 3D theo chuyển động chuột.
 
 /* ---------- Ảnh (nhóm theo tháng) ---------- */
 const photoState = { all: [], list: [], sections: [], cols: 0 };
@@ -1456,7 +1456,7 @@ function renderTrips() {
   }
   if (!window.L) { $('mapStatus').textContent = 'Không tải được bản đồ. Các chuyến đi vẫn hiển thị bên dưới.'; return; }
   if (!mapInstance) {
-    mapInstance = L.map('memoryMap').setView([16.05,107.8],5);
+    mapInstance = L.map('memoryMap', { scrollWheelZoom:false }).setView([16.05,107.8],5);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(mapInstance);
     mapMarkers = L.layerGroup().addTo(mapInstance);
     mapInstance.on('click', e => { if (libraryEdit?.type === 'location' && libraryDialog.open) { libraryForm.elements.latitude.value = e.latlng.lat.toFixed(6); libraryForm.elements.longitude.value = e.latlng.lng.toFixed(6); } });
@@ -1501,13 +1501,13 @@ function openLetter(id) {
   box.append(actions); detailOpen();
 }
 const fieldDefinitions = {
-  trip: [ ['name','Tên chuyến đi','text',true],['start_date','Ngày bắt đầu','date',true],['end_date','Ngày kết thúc','date'],['description','Ghi chú','textarea'],['event_id','Sự kiện liên quan','events'] ],
+  trip: [ ['name','Tên chuyến đi','text',true],['start_date','Ngày bắt đầu','date',true],['end_date','Ngày kết thúc','date'],['description','Ghi chú','textarea'] ],
   location: [ ['name','Tên địa điểm','text',true],['visit_date','Ngày ghé','date'],['address','Địa chỉ','text'],['latitude','Vĩ độ','number'],['longitude','Kinh độ','number'],['description','Ghi chú','textarea'] ],
   letter: [ ['title','Tiêu đề','text',true],['sender','Người gửi','text',true],['recipient','Người nhận','text',true],['written_date','Ngày viết','date',true],['content','Nội dung','textarea'],['open_date','Ngày mở thư','date'],['status','Trạng thái','status',true],['event_id','Sự kiện liên quan','events'] ],
   photo: [ ['caption','Chú thích','text'],['taken','Ngày chụp','date'] ],
 };
 function openLibraryForm(type,item={}) {
-  libraryEdit={ type,id:item.id || '', trip_id:item.trip_id || '' }; libraryForm.reset(); $('libraryError').hidden=true;
+  libraryEdit={ type,id:item.id || '', trip_id:item.trip_id || '', ...(type === 'trip' ? { event_id:item.event_id || '' } : {}), addingLocation: type === 'trip' && !item.id, locationId: crypto.randomUUID() }; libraryForm.reset(); $('libraryError').hidden=true;
   $('libraryDialogTitle').textContent=type==='photo'?'Thông tin ảnh':`${item.id?'Sửa':'Thêm'} ${ {trip:'chuyến đi',location:'địa điểm',letter:'thư'}[type]}`;
   const fields=$('libraryFields'); fields.replaceChildren();
   for(const [name,label,typeName,required] of fieldDefinitions[type]) {
@@ -1516,20 +1516,31 @@ function openLibraryForm(type,item={}) {
       input=document.createElement('select');
       if(typeName==='events') { input.add(new Option('Không liên kết','')); for(const e of memoryEvents) input.add(new Option(e.title,e.id)); }
       else for(const [value,text] of [['draft','Bản nháp'],['saved','Đã lưu'],['opened','Đã mở']]) input.add(new Option(text,value));
-    } else { input=document.createElement(typeName==='textarea'?'textarea':'input'); if(typeName!=='textarea') input.type=typeName; if(typeName==='number') input.step='any'; if(typeName==='textarea') input.rows=5; }
-    input.name=name; input.required=!!required; input.value=item[name] ?? (name==='written_date' ? new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()) : '');
+    } else { input=document.createElement(typeName==='textarea'?'textarea':'input'); if(typeName!=='textarea') input.type=typeName==='date' ? 'text' : typeName; if(typeName==='number') input.step='any'; if(typeName==='textarea') input.rows=3; }
+    input.name=name; input.required=!!required;
+    const initial=item[name] ?? (name==='written_date' ? new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()) : '');
+    if (typeName==='date') { input.placeholder='DD/MM/YYYY'; input.inputMode='numeric'; input.maxLength=10; input.dataset.dateField='true'; input.value=initial ? initial.split('-').reverse().join('/') : ''; input.addEventListener('input', () => { const digits=input.value.replace(/\D/g,'').slice(0,8); input.value=digits.replace(/^(\d{2})(?=\d)/,'$1/').replace(/^(\d{2}\/\d{2})(?=\d)/,'$1/'); }); }
+    else input.value=initial;
     wrap.append(input); fields.append(wrap);
   }
-  if(type==='location') {
-    const picker=node('div', null, 'location-picker'); fields.append(picker);
-    if (window.L) { requestAnimationFrame(() => { const lat=Number(libraryForm.elements.latitude.value) || 16.05, lng=Number(libraryForm.elements.longitude.value) || 107.8; const m=L.map(picker).setView([lat,lng],libraryForm.elements.latitude.value ? 12 : 5); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(m); let marker; const set=(a,b)=>{ libraryForm.elements.latitude.value=a.toFixed(6); libraryForm.elements.longitude.value=b.toFixed(6); if(marker) marker.setLatLng([a,b]); else marker=L.marker([a,b]).addTo(m); }; if(libraryForm.elements.latitude.value) set(lat,lng); m.on('click',e=>set(e.latlng.lat,e.latlng.lng)); setTimeout(()=>m.invalidateSize(),100); }); }
-    const helper=node('p','Chọn điểm trên bản đồ, nhập toạ độ hoặc tìm theo địa chỉ.','muted small');
-    const search=memoryButton('Tìm toạ độ theo địa chỉ',async()=>{
-      const address=libraryForm.elements.address.value.trim(); if(!address) return;
-      search.disabled=true;
-      try { const res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`); if(!res.ok) throw new Error(); const data=await res.json(); if(!data.length) throw new Error(); libraryForm.elements.latitude.value=data[0].lat; libraryForm.elements.longitude.value=data[0].lon; helper.textContent=`Đã tìm: ${data[0].display_name}`; }
-      catch { helper.textContent='Không tìm thấy địa chỉ. Bạn có thể nhập toạ độ thủ công.'; } finally { search.disabled=false; }
-    }); fields.append(helper,search);
+  if (type === 'location' || (type === 'trip' && !item.id)) {
+    if (type === 'trip') {
+      const heading=node('div',null,'trip-location-heading'); heading.append(node('h3','Ghim địa điểm đầu tiên'),node('p','Chọn một điểm trên bản đồ hoặc tìm theo địa chỉ. Bạn có thể thêm các địa điểm khác sau.','muted small')); fields.append(heading);
+      for (const [name,label] of [['place_name','Tên địa điểm'],['address','Địa chỉ']]) { const wrap=node('label',label); const input=document.createElement('input'); input.name=name; input.placeholder=name==='place_name'?'Ví dụ: Hội An':'Nhập địa chỉ để tìm kiếm'; wrap.append(input); fields.append(wrap); }
+      for (const name of ['latitude','longitude']) { const input=document.createElement('input'); input.type='hidden'; input.name=name; fields.append(input); }
+    }
+    const helper=node('p','Chạm vào bản đồ để ghim vị trí.','muted small location-help');
+    const search=memoryButton('⌕ Tìm địa chỉ',async()=>{
+      const address=libraryForm.elements.address.value.trim(); if(!address) { helper.textContent='Hãy nhập địa chỉ trước khi tìm.'; return; }
+      search.disabled=true; helper.textContent='Đang tìm địa chỉ…';
+      try { const res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=vn&q=${encodeURIComponent(address)}`); if(!res.ok) throw new Error(); const data=await res.json(); if(!data.length) throw new Error(); setLocationPoint(Number(data[0].lat),Number(data[0].lon)); pickerMap?.setView([Number(data[0].lat),Number(data[0].lon)],14); helper.textContent=`Đã chọn: ${data[0].display_name}`; }
+      catch { helper.textContent='Không tìm thấy địa chỉ. Hãy thử tìm lại hoặc chọn trực tiếp trên bản đồ.'; } finally { search.disabled=false; }
+    },'location-search');
+    const picker=node('div',null,'location-picker'); fields.append(search,helper,picker);
+    let pickerMap, marker;
+    function setLocationPoint(lat,lng) { libraryForm.elements.latitude.value=lat.toFixed(6); libraryForm.elements.longitude.value=lng.toFixed(6); if(pickerMap) { if(marker) marker.setLatLng([lat,lng]); else marker=L.marker([lat,lng],{icon:L.divIcon({className:'heart-marker',html:'♥',iconSize:[34,34],iconAnchor:[17,17]})}).addTo(pickerMap); } helper.textContent=`Đã ghim: ${lat.toFixed(5)}, ${lng.toFixed(5)}`; }
+    if (window.L) { requestAnimationFrame(() => { const lat=Number(libraryForm.elements.latitude.value), lng=Number(libraryForm.elements.longitude.value); const selected=libraryForm.elements.latitude.value !== '' && libraryForm.elements.longitude.value !== ''; pickerMap=L.map(picker,{ scrollWheelZoom:false }).setView(selected ? [lat,lng] : [16.05,107.8],selected ? 12 : 5); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(pickerMap); if(selected) setLocationPoint(lat,lng); pickerMap.on('click',e=>setLocationPoint(e.latlng.lat,e.latlng.lng)); setTimeout(()=>pickerMap.invalidateSize(),100); }); }
+    else helper.textContent='Không tải được bản đồ. Hãy kiểm tra kết nối và mở lại.';
   }
   libraryDialog.showModal();
 }
@@ -1540,8 +1551,25 @@ $('libraryDetailClose').addEventListener('click',()=> $('libraryDetailDialog').c
 libraryForm.addEventListener('submit',async e=>{
   e.preventDefault(); const submit=libraryForm.querySelector('[type="submit"]'); submit.disabled=true; $('libraryError').hidden=true;
   const values=Object.fromEntries(new FormData(libraryForm));
-  const body={...values,...libraryEdit,action:libraryEdit.type==='photo'?'details':'save'};
-  try { await libraryPost(body); libraryDialog.close(); await loadLibrary(); if(body.type==='trip' && body.id && $('libraryDetailDialog').open) openTrip(body.id); if(body.type==='location' && body.id && $('libraryDetailDialog').open) openLocation(body.id); if(body.type==='letter' && body.id && $('libraryDetailDialog').open) openLetter(body.id); if(body.type==='photo' && lb.open) showPhoto(lbIndex); }
+  try {
+    for (const input of libraryForm.querySelectorAll('[data-date-field]')) {
+      if (!input.value) continue;
+      const match=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(input.value);
+      const iso=match ? `${match[3]}-${match[2]}-${match[1]}` : '';
+      const date=iso ? new Date(`${iso}T00:00:00Z`) : new Date(NaN);
+      if (!iso || Number.isNaN(date.getTime()) || date.toISOString().slice(0,10)!==iso) throw new Error(`Ngày không hợp lệ: ${input.value}. Hãy nhập DD/MM/YYYY.`);
+      values[input.name]=iso;
+    }
+    if (libraryEdit.addingLocation && (values.latitude || values.longitude || values.place_name || values.address) && (!values.latitude || !values.longitude || !values.place_name?.trim())) throw new Error('Nhập tên địa điểm và chọn vị trí trên bản đồ để ghim.');
+    if (libraryEdit.type==='trip' && !libraryEdit.id) libraryEdit.id=crypto.randomUUID();
+    const body={...values,...libraryEdit,action:libraryEdit.type==='photo'?'details':'save'};
+    await libraryPost(body);
+    if (libraryEdit.addingLocation && values.latitude && values.longitude) {
+      try { await libraryPost({type:'location', action:'save', id:libraryEdit.locationId, trip_id:libraryEdit.id, name:values.place_name, address:values.address, latitude:values.latitude, longitude:values.longitude}); }
+      catch (err) { throw new Error(`Đã lưu chuyến đi nhưng chưa ghim được địa điểm: ${err.message}. Hãy thử lưu lại.`); }
+    }
+    libraryDialog.close(); await loadLibrary(); if(body.type==='trip' && body.id && $('libraryDetailDialog').open) openTrip(body.id); if(body.type==='location' && body.id && $('libraryDetailDialog').open) openLocation(body.id); if(body.type==='letter' && body.id && $('libraryDetailDialog').open) openLetter(body.id); if(body.type==='photo' && lb.open) showPhoto(lbIndex);
+  }
   catch(err) { $('libraryError').textContent=err.message; $('libraryError').hidden=false; } finally { submit.disabled=false; }
 });
 async function deleteLibrary(type,id) {

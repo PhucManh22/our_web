@@ -908,3 +908,25 @@ body { background:#1a1113; background-image:radial-gradient(ellipse at 5% 16%,#4
 .hero-heading { font-size:clamp(3.8rem,6vw,5.5rem); white-space:nowrap; }
 .section::before { width:100%; }
 @media(max-width:420px) { .hero-heading { font-size:3.5rem; } }
+
+/* Cuộn nhẹ hơn và form chuyến đi rõ ràng trên cả điện thoại. */
+body { background-attachment:scroll; }
+.topbar.solid,.hero-card,.card,.chips,.scroll-hint,.active-month-view,.icon-btn { backdrop-filter:none; -webkit-backdrop-filter:none; }
+.memory-map .leaflet-tile-pane { filter:none; }
+#libraryDialog { width:min(680px,calc(100vw - 24px)); max-height:min(90dvh,850px); }
+#libraryDialog .memory-form { padding:28px; background:#2b1d20; }
+#libraryDialogTitle { margin:0 0 22px; font:600 27px var(--serif); color:#f5d7d4; }
+#libraryFields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+#libraryFields > label { margin:0; font-size:13px; color:#e9cfca; }
+#libraryFields > label:first-child,#libraryFields > label:has(textarea),#libraryFields > .trip-location-heading,#libraryFields > .location-picker,#libraryFields > .location-help,#libraryFields > .location-search { grid-column:1 / -1; }
+#libraryFields input:not([type=hidden]),#libraryFields textarea,#libraryFields select { width:100%; min-width:0; border:1px solid #795459; border-radius:10px; background:#1d1416; color:#fff4ef; font:14px var(--sans); padding:12px 13px; }
+#libraryFields input::placeholder { color:#ad9291; }
+#libraryFields input:focus,#libraryFields textarea:focus,#libraryFields select:focus { outline:2px solid #e7a3ae; outline-offset:2px; }
+#libraryFields textarea { min-height:85px; resize:vertical; }
+.trip-location-heading { margin-top:10px; border-top:1px solid #745056; padding-top:18px; }
+.trip-location-heading h3 { margin:0 0 5px; font:600 19px var(--serif); color:#f3c3c5; }
+.trip-location-heading p,.location-help { margin:0; line-height:1.5; }
+.location-picker { height:230px; border:1px solid #795459; }
+.location-search { justify-self:start; background:#614047; color:#ffe7e4; border:1px solid #a5757b; border-radius:30px; padding:9px 16px; cursor:pointer; font:13px var(--sans); }
+#libraryForm > .row { margin-top:22px; }
+@media(max-width:520px) { #libraryDialog .memory-form { padding:20px; } #libraryFields { gap:12px; } #libraryFields > label { font-size:12px; } }
