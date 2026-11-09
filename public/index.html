@@ -8,6 +8,9 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#d83a56">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Great+Vibes&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css?v=__V__">
 </head>
@@ -42,9 +45,9 @@
   <main id="top">
     <section class="hero" id="hero">
       <div class="hero-inner">
+        <div class="hero-copy"><h1 class="hero-heading">Chúng mình ♡</h1><p class="hero-intro">Đã cùng nhau viết nên<br>câu chuyện này... ♡</p><span class="hero-flourish" aria-hidden="true">──── ♡ ────</span></div>
         <div class="hero-card" id="heroCard">
           <div class="hero-card-glare" id="heroCardGlare"></div>
-          <h1 class="hero-heading">Chúng mình</h1><p class="hero-intro">Đã cùng nhau viết nên câu chuyện này...</p>
           <div class="hero-badge"><span class="badge-dot"></span> ĐÃ BÊN NHAU <span class="badge-dot"></span></div>
           <div class="days-wrap">
             <span id="daysNum">—</span><span class="days-unit">ngày</span>
@@ -57,7 +60,7 @@
             <div class="timer-chip"><span id="chipMins">00</span><label>phút</label></div>
             <div class="timer-chip"><span id="chipSecs">00</span><label>giây</label></div>
           </div>
-          <p id="nextAnniversary" class="muted"></p><div id="onThisDay" class="muted"></div>
+          <p class="hero-quote">“Cảm ơn vì đã luôn ở đây,<br>để những ngày bình thường<br>cũng trở nên đặc biệt. ♡”</p><p id="nextAnniversary" class="muted"></p><div id="onThisDay" class="muted"></div>
           <p class="breakdown" id="breakdown" aria-live="off" hidden></p>
         </div>
       </div>
@@ -67,7 +70,7 @@
     </section>
 
     <section class="section" id="timeline" aria-labelledby="timelineTitle">
-      <div class="section-head"><div><p class="memory-eyebrow">CÂU CHUYỆN CỦA CHÚNG MÌNH</p><h2 id="timelineTitle">Những ngày đặc biệt</h2><p class="muted">Mỗi cột mốc là một phần câu chuyện của chúng mình.</p></div><button class="btn btn-sm" type="button" id="addEvent">＋ Thêm sự kiện</button></div>
+      <div class="section-head"><div><p class="memory-eyebrow">CÂU CHUYỆN CỦA CHÚNG MÌNH</p><h2 id="timelineTitle">Những ngày đặc biệt của chúng mình</h2><p class="muted">Cùng nhau đi qua những khoảnh khắc quan trọng nhất... ♡</p></div><button class="btn btn-sm" type="button" id="addEvent">＋ Thêm sự kiện</button></div>
       <p id="timelineStatus" class="muted" role="status">Đang tải các sự kiện…</p>
       <div id="timelineList" class="timeline-list"></div>
     </section>
@@ -75,13 +78,13 @@
     <section class="section" id="mapSection" aria-labelledby="mapTitle">
       <div class="section-head"><div><p class="memory-eyebrow">NHỮNG NƠI MÌNH ĐÃ QUA</p><h2 id="mapTitle">Bản đồ kỷ niệm</h2><p class="muted">Mỗi hành trình đều có một câu chuyện.</p></div><button class="btn btn-sm" type="button" id="addTrip">＋ Thêm chuyến đi</button></div>
       <div class="library-filters"><label>Chuyến đi <select id="mapTripFilter"><option value="">Tất cả chuyến đi</option></select></label><label>Năm <select id="mapYearFilter"><option value="">Tất cả các năm</option></select></label></div>
-      <div id="memoryMap" class="memory-map" aria-label="Bản đồ địa điểm kỷ niệm"></div><p id="mapStatus" class="muted" role="status"></p><div id="tripList" class="timeline-list"></div>
+      <div class="map-layout"><div><div id="tripList" class="timeline-list"></div><p id="mapStatus" class="muted" role="status"></p></div><div id="memoryMap" class="memory-map" aria-label="Bản đồ địa điểm kỷ niệm"></div></div>
     </section>
     <section class="section" id="photos" aria-labelledby="photosTitle">
       <div class="section-head">
         <div class="section-title-wrap">
           <h2 id="photosTitle">Album kỷ niệm</h2>
-          <span class="sparkle" aria-hidden="true">✨</span>
+          <span class="sparkle" aria-hidden="true">♡</span>
         </div>
         <div class="head-actions">
           <p class="muted" id="photoCount"></p>
@@ -162,6 +165,7 @@
         </div>
       </div>
 
+      <div class="letter-visual" aria-hidden="true"><div class="envelope"><span>♥</span></div><p>Những lời nhắn gửi từ trái tim... ♡</p></div>
       <div class="row end"><button class="btn btn-sm" id="addLetter" type="button">＋ Viết thư</button></div>
       <p class="muted" id="letterStatus" role="status"></p><div id="letterList" class="letter-list"></div>
       <details class="legacy-notes"><summary>Ghi chú trước đây</summary>
