@@ -1456,7 +1456,7 @@ function renderTrips() {
   }
   if (!window.L) { $('mapStatus').textContent = 'Không tải được bản đồ. Các chuyến đi vẫn hiển thị bên dưới.'; return; }
   if (!mapInstance) {
-    mapInstance = L.map('memoryMap', { scrollWheelZoom:false }).setView([16.05,107.8],5);
+    mapInstance = L.map('memoryMap', { scrollWheelZoom:true }).setView([16.05,107.8],5);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(mapInstance);
     mapMarkers = L.layerGroup().addTo(mapInstance);
     mapInstance.on('click', e => { if (libraryEdit?.type === 'location' && libraryDialog.open) { libraryForm.elements.latitude.value = e.latlng.lat.toFixed(6); libraryForm.elements.longitude.value = e.latlng.lng.toFixed(6); } });
@@ -1539,7 +1539,7 @@ function openLibraryForm(type,item={}) {
     const picker=node('div',null,'location-picker'); fields.append(search,helper,picker);
     let pickerMap, marker;
     function setLocationPoint(lat,lng) { libraryForm.elements.latitude.value=lat.toFixed(6); libraryForm.elements.longitude.value=lng.toFixed(6); if(pickerMap) { if(marker) marker.setLatLng([lat,lng]); else marker=L.marker([lat,lng],{icon:L.divIcon({className:'heart-marker',html:'♥',iconSize:[34,34],iconAnchor:[17,17]})}).addTo(pickerMap); } helper.textContent=`Đã ghim: ${lat.toFixed(5)}, ${lng.toFixed(5)}`; }
-    if (window.L) { requestAnimationFrame(() => { const lat=Number(libraryForm.elements.latitude.value), lng=Number(libraryForm.elements.longitude.value); const selected=libraryForm.elements.latitude.value !== '' && libraryForm.elements.longitude.value !== ''; pickerMap=L.map(picker,{ scrollWheelZoom:false }).setView(selected ? [lat,lng] : [16.05,107.8],selected ? 12 : 5); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(pickerMap); if(selected) setLocationPoint(lat,lng); pickerMap.on('click',e=>setLocationPoint(e.latlng.lat,e.latlng.lng)); setTimeout(()=>pickerMap.invalidateSize(),100); }); }
+    if (window.L) { requestAnimationFrame(() => { const lat=Number(libraryForm.elements.latitude.value), lng=Number(libraryForm.elements.longitude.value); const selected=libraryForm.elements.latitude.value !== '' && libraryForm.elements.longitude.value !== ''; pickerMap=L.map(picker,{ scrollWheelZoom:true }).setView(selected ? [lat,lng] : [16.05,107.8],selected ? 12 : 5); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(pickerMap); if(selected) setLocationPoint(lat,lng); pickerMap.on('click',e=>setLocationPoint(e.latlng.lat,e.latlng.lng)); setTimeout(()=>pickerMap.invalidateSize(),100); }); }
     else helper.textContent='Không tải được bản đồ. Hãy kiểm tra kết nối và mở lại.';
   }
   libraryDialog.showModal();
