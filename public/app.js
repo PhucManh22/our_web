@@ -13,23 +13,26 @@ $('year').textContent = new Date().getFullYear();
 
 /* ---------- Đồng hồ ngày yêu ---------- */
 function tick() {
-  const start = new Date(startDate);
-  const now = new Date();
-  const days = Math.floor((now - start) / 86400000);
-  let months = (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth();
-  let anchor = new Date(start); anchor.setMonth(start.getMonth() + months);
-  if (anchor > now) { months--; anchor = new Date(start); anchor.setMonth(start.getMonth() + months); }
-  const restDays = Math.floor((now - anchor) / 86400000);
+  // Dùng giờ Việt Nam cho phép tính lịch, không phụ thuộc múi giờ thiết bị.
+  const offset = 7 * 3600000;
+  const now = new Date(Date.now() + offset);
+  const start = new Date(new Date(startDate).getTime() + offset);
+  const days = Math.max(0, Math.floor((now - start) / 86400000));
+  let months = (now.getUTCFullYear() - start.getUTCFullYear()) * 12 + now.getUTCMonth() - start.getUTCMonth();
+  let anchor = new Date(start); anchor.setUTCMonth(start.getUTCMonth() + months);
+  if (anchor > now) { months--; anchor = new Date(start); anchor.setUTCMonth(start.getUTCMonth() + months); }
+  const elapsed = Math.max(0, now - anchor);
+  const restDays = Math.floor(elapsed / 86400000);
   const p = (n) => String(n).padStart(2, '0');
+  const hours = Math.floor(elapsed / 3600000) % 24, minutes = Math.floor(elapsed / 60000) % 60, seconds = Math.floor(elapsed / 1000) % 60;
   $('daysNum').textContent = days.toLocaleString('vi-VN');
-  $('breakdown').textContent =
-    `${months} tháng ${restDays} ngày · ${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`;
-  const cm = $('chipMonths'), cd = $('chipDays'), ch = $('chipHours'), cmin = $('chipMins'), cs = $('chipSecs');
-  if (cm) cm.textContent = months;
-  if (cd) cd.textContent = restDays;
-  if (ch) ch.textContent = p(now.getHours());
-  if (cmin) cmin.textContent = p(now.getMinutes());
-  if (cs) cs.textContent = p(now.getSeconds());
+  $('breakdown').textContent = `${months} tháng ${restDays} ngày · ${p(hours)}:${p(minutes)}:${p(seconds)}`;
+  $('chipYears').textContent = Math.max(0, Math.floor(months / 12));
+  $('chipMonths').textContent = Math.max(0, months % 12);
+  $('chipDays').textContent = restDays;
+  $('chipHours').textContent = p(hours);
+  $('chipMins').textContent = p(minutes);
+  $('chipSecs').textContent = p(seconds);
 }
 tick();
 setInterval(tick, 1000);
@@ -545,7 +548,7 @@ function selectMonth(key) {
 
 function render() {
   const groups = new Map();
-  for (const p of photoState.all) {
+  for (const p of filteredPhotos()) {
     const k = monthKey(p);
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(p);
@@ -558,7 +561,7 @@ function render() {
   photoState.list = keys.flatMap((k) => groups.get(k));
   $('photoCount').textContent = `${photoState.all.length} khoảnh khắc`;
 
-  if (!keys.length) return;
+  if (!keys.length) { $('chips').replaceChildren(); $('months').replaceChildren(); $('coverflow').replaceChildren(); $('activeMonthTitle').textContent = 'Không có ảnh phù hợp'; $('activeMonthCount').textContent = ''; return; }
 
   $('chips').replaceChildren(
     ...keys.map((k) => {
@@ -880,6 +883,7 @@ async function deletePhotos(list) {
   });
   const gone = new Set(deleted);
   photoState.all = photoState.all.filter((p) => !gone.has(p.id));
+  await loadLibrary();
   render();
   if (deleted.length < list.length) alert(`Chỉ xoá được ${deleted.length}/${list.length} ảnh (một số tên file lạ).`);
 }
@@ -908,7 +912,7 @@ $('selectCancel').addEventListener('click', () => setSelecting(false));
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && selecting && !lb.open) setSelecting(false); });
 $('selectDelete').addEventListener('click', async () => {
   const list = [...selected.values()];
-  if (!list.length || !confirm(`Xoá vĩnh viễn ${list.length} ảnh (cả ảnh gốc trên R2)?\nKhông khôi phục được.`)) return;
+  if (!list.length || !confirm(`Xoá vĩnh viễn ${list.length} ảnh (cả ảnh gốc trên R2)?\n${photoUsage(list)}\nKhông khôi phục được.`)) return;
   $('selectDelete').disabled = true;
   try { await deletePhotos(list); setSelecting(false); }
   catch (e) { alert(e.message); updateSelectBar(); }
@@ -1048,6 +1052,7 @@ function showPhoto(i) {
   $('lbCount').textContent = `${lbIndex + 1} / ${list.length}`;
   $('lbOriginal').href = media(`original/${encodeURIComponent(p.original)}`);
   $('lbDelete').hidden = false;
+  renderPhotoSources(p);
   [1, -1].forEach((d) => { new Image().src = media(`full/${list[(lbIndex + d + list.length) % list.length].id}.webp`); });
 }
 
@@ -1076,7 +1081,7 @@ lb.addEventListener('touchend', (e) => {
 
 $('lbDelete').addEventListener('click', async () => {
   const p = photoState.list[lbIndex];
-  if (!p || !confirm('Xoá vĩnh viễn ảnh này (cả ảnh gốc trên R2)?\nKhông khôi phục được.')) return;
+  if (!p || !confirm(`Xoá vĩnh viễn ảnh này (cả ảnh gốc trên R2)?\n${photoUsage([p])}\nKhông khôi phục được.`)) return;
   try { lb.close(); await deletePhotos([p]); }
   catch (e) { alert(e.message); }
 });
@@ -1213,12 +1218,14 @@ async function authApiRaw(path, { method = 'GET', body } = {}) {
 }
 
 let entered = false;
-function enter() {
+async function enter() {
   document.body.classList.remove('locked');
   if (entered) return;
   entered = true;
   $('hero').style.backgroundImage = `url("${media('hero.webp')}")`;
-  loadPhotos();
+  await loadPhotos();
+  await loadMemories();
+  await loadLibrary();
 }
 window.enter = enter;
 
@@ -1273,3 +1280,332 @@ $('pwForm').addEventListener('submit', async (e) => {
 });
 
 checkGate();
+
+
+/* ---------- Các cột mốc và nhật ký ---------- */
+let memoryEvents = [], memoryDiaries = [], activeEvent = '', editingMemory = null;
+const memoryDialog = $('memoryDialog'), memoryForm = $('memoryForm');
+function node(tag, text, className) {
+  const el = document.createElement(tag);
+  if (text != null) el.textContent = text;
+  if (className) el.className = className;
+  return el;
+}
+function memoryButton(text, callback, className = 'link') {
+  const button = node('button', text, className); button.type = 'button'; button.addEventListener('click', callback); return button;
+}
+function displayDate(value) { return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'long', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(`${value}T00:00:00+07:00`)); }
+async function loadMemories() {
+  $('timelineStatus').textContent = 'Đang tải các sự kiện…';
+  try {
+    const result = await authApiRaw('/api/memories');
+    memoryEvents = result.events; memoryDiaries = result.diaries;
+    renderTimeline();
+    if (activeEvent && $('eventDialog').open) renderEvent(activeEvent);
+  } catch (err) { $('timelineStatus').textContent = `Không tải được sự kiện: ${err.message}`; }
+}
+function renderTimeline() {
+  const list = $('timelineList'); list.replaceChildren();
+  $('timelineStatus').textContent = memoryEvents.length ? '' : 'Chưa có sự kiện nào.';
+  for (const event of memoryEvents) {
+    const card = node('article', null, 'timeline-card');
+    card.append(node('p', displayDate(event.event_date), 'memory-date'), node('h3', event.title), node('p', event.description, 'muted'));
+    card.append(memoryButton('Xem kỷ niệm →', () => { activeEvent = event.id; renderEvent(event.id); $('eventDialog').showModal(); }));
+    list.append(card);
+  }
+  const now = new Date(), vnToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  const year = Number(vnToday.slice(0, 4));
+  const upcoming = memoryEvents.map((e) => {
+    let next = e.event_date > vnToday ? e.event_date : `${year}-${e.event_date.slice(5)}`;
+    if (next < vnToday) next = `${year + 1}-${e.event_date.slice(5)}`;
+    if (!/^\d{4}-02-29$/.test(next) || new Date(`${next}T00:00:00Z`).getUTCDate() === 29) return { event: e, next };
+    while (new Date(`${next}T00:00:00Z`).getUTCDate() !== 29) next = `${Number(next.slice(0, 4)) + 1}-02-29`;
+    return { event: e, next };
+  }).sort((a, b) => a.next.localeCompare(b.next))[0];
+  const todayMemories = [...memoryEvents.filter(e => e.event_date < vnToday && e.event_date.slice(5) === vnToday.slice(5)).map(e => `${e.title} (${e.event_date.slice(0,4)})`), ...memoryDiaries.filter(d => d.entry_date < vnToday && d.entry_date.slice(5) === vnToday.slice(5)).map(d => `${d.title} (${d.entry_date.slice(0,4)})`)];
+  $('onThisDay').textContent = todayMemories.length ? `Ngày này năm ấy: ${todayMemories.join(' · ')}` : '';
+  $('nextAnniversary').textContent = upcoming ? `Kỷ niệm sắp tới: ${upcoming.event.title} · còn ${Math.round((Date.parse(`${upcoming.next}T00:00:00Z`) - Date.parse(`${vnToday}T00:00:00Z`)) / 86400000)} ngày` : '';
+}
+function renderEvent(id) {
+  const event = memoryEvents.find((e) => e.id === id); if (!event) { $('eventDialog').close(); return; }
+  const box = $('eventDetail'); box.replaceChildren();
+  const title = node('h2', event.title); title.id = 'eventDetailTitle';
+  const elapsed = Math.max(0, Math.floor((Date.now() - Date.parse(`${event.event_date}T00:00:00+07:00`)) / 86400000));
+  box.append(node('p', displayDate(event.event_date), 'memory-date'), title, node('p', event.description), node('p', `Đã ${elapsed.toLocaleString('vi-VN')} ngày kể từ ngày này.`, 'muted'));
+  box.append(memoryPhotoStrip('event',event.id));
+  const actions = node('div', null, 'memory-actions');
+  actions.append(memoryButton('Ảnh sự kiện', () => openPhotoLinks('event', event.id)));
+  for (const trip of library.trips.filter(t => t.event_id === event.id)) actions.append(memoryButton(`Chuyến đi: ${trip.name}`, () => openTrip(trip.id)));
+  for (const letter of library.letters.filter(l => l.event_id === event.id)) actions.append(memoryButton(`Thư: ${letter.title}`, () => openLetter(letter.id)));
+  actions.append(memoryButton('Sửa sự kiện', () => openMemoryForm('event', event)), memoryButton('Xoá sự kiện', () => deleteMemory('event', event.id), 'link danger'));
+  box.append(actions, node('h3', 'Nhật ký kỷ niệm'), memoryButton('＋ Thêm nhật ký', () => openMemoryForm('diary', null), 'btn btn-sm'));
+  const diaries = memoryDiaries.filter((d) => d.event_id === id);
+  if (!diaries.length) box.append(node('p', 'Chưa có nhật ký cho sự kiện này.', 'muted'));
+  let lastYear;
+  for (const diary of diaries) {
+    if (lastYear !== diary.year) { box.append(node('h4', String(diary.year), 'memory-year')); lastYear = diary.year; }
+    const entry = node('article', null, 'diary-entry');
+    entry.append(node('h4', diary.title), node('p', `${displayDate(diary.entry_date)}${diary.location ? ` · ${diary.location}` : ''}`, 'muted small'), node('p', diary.content));
+    const buttons = node('div', null, 'memory-actions'); buttons.append(memoryButton('Ảnh', () => openPhotoLinks('diary', diary.id)), memoryButton('Video', () => openAssets('diary', diary.id)), memoryButton('Sửa', () => openMemoryForm('diary', diary)), memoryButton('Xoá', () => deleteMemory('diary', diary.id), 'link danger')); entry.append(memoryPhotoStrip('diary',diary.id), buttons); box.append(entry);
+  }
+}
+function openMemoryForm(type, item) {
+  editingMemory = { type, id: item?.id || '' };
+  memoryForm.reset(); $('memoryError').hidden = true;
+  $('memoryDialogTitle').textContent = `${item ? 'Sửa' : 'Thêm'} ${type === 'event' ? 'sự kiện' : 'nhật ký'}`;
+  $('memoryYearLabel').hidden = $('memoryLocationLabel').hidden = type !== 'diary';
+  const f = memoryForm.elements;
+  f.title.value = item?.title || ''; f.date.value = item?.event_date || item?.entry_date || '';
+  f.year.value = item?.year || new Date().getFullYear(); f.location.value = item?.location || '';
+  f.description.value = item?.description || item?.content || '';
+  memoryDialog.showModal();
+}
+$('addEvent').addEventListener('click', () => openMemoryForm('event', null));
+$('eventClose').addEventListener('click', () => { $('eventDialog').close(); activeEvent = ''; });
+$('memoryCancel').addEventListener('click', () => memoryDialog.close());
+memoryForm.addEventListener('submit', async (e) => {
+  e.preventDefault(); const f = memoryForm.elements, submit = memoryForm.querySelector('[type="submit"]'); submit.disabled = true; $('memoryError').hidden = true;
+  const data = { ...editingMemory, action: 'save', title: f.title.value, date: f.date.value, year: Number(f.year.value), eventId: activeEvent, location: f.location.value, description: f.description.value, content: f.description.value };
+  try { await authApiRaw('/api/memories', { method: 'POST', body: data }); memoryDialog.close(); await loadMemories(); }
+  catch (err) { $('memoryError').textContent = err.message; $('memoryError').hidden = false; }
+  finally { submit.disabled = false; }
+});
+async function deleteMemory(type, id) {
+  if (!confirm(type === 'event' ? 'Xoá sự kiện và tất cả nhật ký thuộc sự kiện này?' : 'Xoá nhật ký này?')) return;
+  try { await authApiRaw('/api/memories', { method: 'POST', body: { type, action: 'delete', id } }); await loadMemories(); }
+  catch (err) { alert(`Không xoá được: ${err.message}`); }
+}
+
+/* ---------- Chuyến đi, thư và liên kết ảnh ---------- */
+let library = { trips: [], locations: [], letters: [], links: [], details: [] };
+let libraryEdit = null, linkTarget = null, mapInstance, mapMarkers;
+const libraryDialog = $('libraryDialog'), libraryForm = $('libraryForm');
+const libraryPost = (body) => authApiRaw('/api/library', { method: 'POST', body });
+async function loadLibrary() {
+  try {
+    library = await authApiRaw('/api/library');
+    for (const p of photoState.all) {
+      const detail = library.details.find(d => d.photo_id === p.id);
+      if (detail) { if (detail.taken) p.taken = detail.taken; p.caption = detail.caption; }
+    }
+    updateLibraryFilters(); renderTrips(); renderLetters(); render();
+    if (activeEvent && $('eventDialog').open) renderEvent(activeEvent);
+  } catch (err) { $('mapStatus').textContent = `Không tải được dữ liệu: ${err.message}`; $('letterStatus').textContent = `Không tải được thư: ${err.message}`; }
+}
+function photoLinkedTo(p, kind, id) {
+  if (!id) return true;
+  return library.links.some(l => l.photo_id === p.id && ((l.kind === kind && l.target_id === id) ||
+    (kind === 'event' && l.kind === 'diary' && memoryDiaries.some(d => d.id === l.target_id && d.event_id === id)) ||
+    (kind === 'trip' && l.kind === 'location' && library.locations.some(x => x.id === l.target_id && x.trip_id === id))));
+}
+function filteredPhotos() {
+  const q = $('photoSearch').value.trim().toLocaleLowerCase('vi');
+  return photoState.all.filter(p => {
+    const date = (p.taken || '').slice(0, 10);
+    const locationNames = library.links.filter(l => l.photo_id === p.id && l.kind === 'location').map(l => library.locations.find(x => x.id === l.target_id)?.name || '').join(' ');
+    return (!$('photoYear').value || date.slice(0,4) === $('photoYear').value) && (!$('photoMonth').value || date.slice(5,7) === $('photoMonth').value) &&
+      photoLinkedTo(p,'event',$('photoEvent').value) && photoLinkedTo(p,'trip',$('photoTrip').value) && photoLinkedTo(p,'location',$('photoLocation').value) &&
+      (!q || `${p.caption || ''} ${locationNames}`.toLocaleLowerCase('vi').includes(q));
+  });
+}
+function fillSelect(id, items, placeholder) {
+  const el = $(id), old = el.value; el.replaceChildren(new Option(placeholder, ''));
+  for (const [value,label] of items) el.add(new Option(label,value));
+  if ([...el.options].some(x => x.value === old)) el.value = old;
+}
+function updateLibraryFilters() {
+  const years = [...new Set([...photoState.all.map(p => (p.taken || '').slice(0,4)), ...library.trips.map(t => t.start_date.slice(0,4))].filter(Boolean))].sort().reverse();
+  fillSelect('photoYear',years.map(y => [y,y]),'Tất cả'); fillSelect('mapYearFilter',years.map(y => [y,y]),'Tất cả các năm');
+  fillSelect('photoMonth',Array.from({length:12},(_,i) => [String(i+1).padStart(2,'0'),`Tháng ${i+1}`]),'Tất cả');
+  fillSelect('photoEvent',memoryEvents.map(e => [e.id,e.title]),'Tất cả');
+  for (const id of ['photoTrip','mapTripFilter']) fillSelect(id,library.trips.map(t => [t.id,t.name]),id === 'photoTrip' ? 'Tất cả' : 'Tất cả chuyến đi');
+  fillSelect('photoLocation',library.locations.map(l => [l.id,l.name]),'Tất cả');
+}
+for (const id of ['photoSearch','photoYear','photoMonth','photoEvent','photoTrip','photoLocation']) $(id).addEventListener('input',() => { activeMonth = null; render(); $('albumFilterStatus').textContent = `${photoState.list.length} ảnh phù hợp`; });
+for (const id of ['mapTripFilter','mapYearFilter']) $(id).addEventListener('change',renderTrips);
+function openAlbum(kind,id) {
+  for (const key of ['photoYear','photoMonth','photoEvent','photoTrip','photoLocation','photoSearch']) $(key).value = '';
+  $(kind === 'trip' ? 'photoTrip' : kind === 'event' ? 'photoEvent' : 'photoLocation').value = id;
+  if ($('libraryDetailDialog').open) $('libraryDetailDialog').close();
+  if ($('eventDialog').open) $('eventDialog').close();
+  activeMonth = null; render(); setViewMode('grid'); $('photos').scrollIntoView(); $('albumFilterStatus').textContent = `${photoState.list.length} ảnh phù hợp`;
+}
+function renderTrips() {
+  const selectedTrip = $('mapTripFilter').value, year = $('mapYearFilter').value;
+  const trips = library.trips.filter(t => (!selectedTrip || t.id === selectedTrip) && (!year || t.start_date.startsWith(year)));
+  const list = $('tripList'); list.replaceChildren();
+  if (!trips.length) list.append(node('p','Chưa có chuyến đi phù hợp.','muted'));
+  for (const trip of trips) {
+    const card = node('article',null,'timeline-card');
+    card.append(node('p',displayDate(trip.start_date),'memory-date'),node('h3',trip.name),node('p',trip.description,'muted'), memoryButton('Xem hành trình →',() => openTrip(trip.id)));
+    list.append(card);
+  }
+  if (!window.L) { $('mapStatus').textContent = 'Không tải được bản đồ. Các chuyến đi vẫn hiển thị bên dưới.'; return; }
+  if (!mapInstance) {
+    mapInstance = L.map('memoryMap').setView([16.05,107.8],5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(mapInstance);
+    mapMarkers = L.layerGroup().addTo(mapInstance);
+    mapInstance.on('click', e => { if (libraryEdit?.type === 'location' && libraryDialog.open) { libraryForm.elements.latitude.value = e.latlng.lat.toFixed(6); libraryForm.elements.longitude.value = e.latlng.lng.toFixed(6); } });
+  }
+  mapMarkers.clearLayers();
+  const ids = new Set(trips.map(t=>t.id)); let count = 0;
+  for (const loc of library.locations.filter(l=>ids.has(l.trip_id) && l.latitude != null && l.longitude != null)) {
+    const marker = L.marker([loc.latitude,loc.longitude]).addTo(mapMarkers);
+    const content = node('div'); content.append(node('strong',loc.name),document.createElement('br'),memoryButton('Xem địa điểm',() => openLocation(loc.id))); marker.bindPopup(content); count++;
+  }
+  $('mapStatus').textContent = count ? `${count} địa điểm trên bản đồ` : 'Chưa có địa điểm có toạ độ.';
+}
+function detailOpen() { if (!$('libraryDetailDialog').open) $('libraryDetailDialog').showModal(); }
+function openTrip(id) {
+  const t = library.trips.find(x=>x.id===id); if (!t) return;
+  const box=$('libraryDetail'); box.replaceChildren(node('p',displayDate(t.start_date),'memory-date'),node('h2',t.name),node('p',t.description));
+  const actions=node('div',null,'memory-actions');
+  actions.append(memoryButton('Album chuyến đi',()=>openAlbum('trip',t.id)),memoryButton('Ảnh chuyến đi',()=>openPhotoLinks('trip',t.id)),memoryButton('Sửa',()=>openLibraryForm('trip',t)),memoryButton('Xoá',()=>deleteLibrary('trip',t.id),'link danger'));
+  const event=memoryEvents.find(e=>e.id===t.event_id);
+  if(event) actions.append(memoryButton(`Sự kiện: ${event.title}`,()=>{ $('libraryDetailDialog').close(); activeEvent=event.id; renderEvent(event.id); if (!$('eventDialog').open) $('eventDialog').showModal(); }));
+  box.append(actions,node('h3','Các địa điểm'),memoryButton('＋ Thêm địa điểm',()=>openLibraryForm('location',{trip_id:t.id}),'btn btn-sm'));
+  const locations=library.locations.filter(l=>l.trip_id===t.id);
+  if(!locations.length) box.append(node('p','Chưa có địa điểm nào.','muted'));
+  for(const loc of locations) { const el=node('div',null,'diary-entry'); el.append(node('h4',loc.name),node('p',loc.address,'muted'),memoryButton('Xem địa điểm →',()=>openLocation(loc.id))); box.append(el); }
+  detailOpen();
+}
+function openLocation(id) {
+  const loc=library.locations.find(x=>x.id===id); if(!loc) return;
+  const box=$('libraryDetail'); box.replaceChildren(node('p',loc.visit_date ? displayDate(loc.visit_date) : '', 'memory-date'),node('h2',loc.name),node('p',loc.address,'muted'),node('p',loc.description));
+  const actions=node('div',null,'memory-actions'); actions.append(memoryButton('← Chuyến đi',()=>openTrip(loc.trip_id)),memoryButton('Xem toàn bộ ảnh tại địa điểm',()=>openAlbum('location',loc.id)),memoryButton('Album chuyến đi',()=>openAlbum('trip',loc.trip_id)),memoryButton('Thêm / gỡ ảnh',()=>openPhotoLinks('location',loc.id)),memoryButton('Sửa',()=>openLibraryForm('location',loc)),memoryButton('Xoá',()=>deleteLibrary('location',loc.id),'link danger')); box.append(actions); detailOpen();
+}
+function renderLetters() {
+  const list=$('letterList'); list.replaceChildren(); $('letterStatus').textContent=library.letters.length ? '' : 'Chưa có thư nào. Viết cho nhau một lá thư nhé.';
+  for(const l of library.letters) { const card=node('article',null,'letter-card'); card.append(node('div','✉','letter-icon'),node('h3',l.title),node('p',`${l.sender} → ${l.recipient} · ${displayDate(l.written_date)}`,'muted small'),node('p',l.locked ? `Mở vào ${displayDate(l.open_date)}` : l.status === 'draft' ? 'Bản nháp' : 'Thư nhỏ','memory-date'),memoryButton(l.locked?'Chưa đến ngày mở':'Mở thư',()=>openLetter(l.id))); list.append(card); }
+}
+function openLetter(id) {
+  const l=library.letters.find(x=>x.id===id); if(!l) return;
+  const box=$('libraryDetail'); box.replaceChildren(node('p',`${l.sender} → ${l.recipient} · ${displayDate(l.written_date)}`,'memory-date'),node('h2',l.title),node('p',l.locked ? `Lá thư sẽ mở vào ${displayDate(l.open_date)}.` : l.content,'letter-content'));
+  const actions=node('div',null,'memory-actions'); if(!l.locked) actions.append(memoryButton('Tệp đính kèm',()=>openAssets('letter',l.id)), memoryButton('Sửa',()=>openLibraryForm('letter',l)));
+  actions.append(memoryButton('Xoá',()=>deleteLibrary('letter',l.id),'link danger'));
+  const event=memoryEvents.find(e=>e.id===l.event_id); if(event) actions.append(memoryButton(`Sự kiện: ${event.title}`,()=>{ $('libraryDetailDialog').close(); activeEvent=event.id; renderEvent(event.id); if(!$('eventDialog').open) $('eventDialog').showModal(); }));
+  box.append(actions); detailOpen();
+}
+const fieldDefinitions = {
+  trip: [ ['name','Tên chuyến đi','text',true],['start_date','Ngày bắt đầu','date',true],['end_date','Ngày kết thúc','date'],['description','Ghi chú','textarea'],['event_id','Sự kiện liên quan','events'] ],
+  location: [ ['name','Tên địa điểm','text',true],['visit_date','Ngày ghé','date'],['address','Địa chỉ','text'],['latitude','Vĩ độ','number'],['longitude','Kinh độ','number'],['description','Ghi chú','textarea'] ],
+  letter: [ ['title','Tiêu đề','text',true],['sender','Người gửi','text',true],['recipient','Người nhận','text',true],['written_date','Ngày viết','date',true],['content','Nội dung','textarea'],['open_date','Ngày mở thư','date'],['status','Trạng thái','status',true],['event_id','Sự kiện liên quan','events'] ],
+  photo: [ ['caption','Chú thích','text'],['taken','Ngày chụp','date'] ],
+};
+function openLibraryForm(type,item={}) {
+  libraryEdit={ type,id:item.id || '', trip_id:item.trip_id || '' }; libraryForm.reset(); $('libraryError').hidden=true;
+  $('libraryDialogTitle').textContent=type==='photo'?'Thông tin ảnh':`${item.id?'Sửa':'Thêm'} ${ {trip:'chuyến đi',location:'địa điểm',letter:'thư'}[type]}`;
+  const fields=$('libraryFields'); fields.replaceChildren();
+  for(const [name,label,typeName,required] of fieldDefinitions[type]) {
+    const wrap=node('label',label); let input;
+    if(typeName==='events' || typeName==='status') {
+      input=document.createElement('select');
+      if(typeName==='events') { input.add(new Option('Không liên kết','')); for(const e of memoryEvents) input.add(new Option(e.title,e.id)); }
+      else for(const [value,text] of [['draft','Bản nháp'],['saved','Đã lưu'],['opened','Đã mở']]) input.add(new Option(text,value));
+    } else { input=document.createElement(typeName==='textarea'?'textarea':'input'); if(typeName!=='textarea') input.type=typeName; if(typeName==='number') input.step='any'; if(typeName==='textarea') input.rows=5; }
+    input.name=name; input.required=!!required; input.value=item[name] ?? (name==='written_date' ? new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()) : '');
+    wrap.append(input); fields.append(wrap);
+  }
+  if(type==='location') {
+    const picker=node('div', null, 'location-picker'); fields.append(picker);
+    if (window.L) { requestAnimationFrame(() => { const lat=Number(libraryForm.elements.latitude.value) || 16.05, lng=Number(libraryForm.elements.longitude.value) || 107.8; const m=L.map(picker).setView([lat,lng],libraryForm.elements.latitude.value ? 12 : 5); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(m); let marker; const set=(a,b)=>{ libraryForm.elements.latitude.value=a.toFixed(6); libraryForm.elements.longitude.value=b.toFixed(6); if(marker) marker.setLatLng([a,b]); else marker=L.marker([a,b]).addTo(m); }; if(libraryForm.elements.latitude.value) set(lat,lng); m.on('click',e=>set(e.latlng.lat,e.latlng.lng)); setTimeout(()=>m.invalidateSize(),100); }); }
+    const helper=node('p','Chọn điểm trên bản đồ, nhập toạ độ hoặc tìm theo địa chỉ.','muted small');
+    const search=memoryButton('Tìm toạ độ theo địa chỉ',async()=>{
+      const address=libraryForm.elements.address.value.trim(); if(!address) return;
+      search.disabled=true;
+      try { const res=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`); if(!res.ok) throw new Error(); const data=await res.json(); if(!data.length) throw new Error(); libraryForm.elements.latitude.value=data[0].lat; libraryForm.elements.longitude.value=data[0].lon; helper.textContent=`Đã tìm: ${data[0].display_name}`; }
+      catch { helper.textContent='Không tìm thấy địa chỉ. Bạn có thể nhập toạ độ thủ công.'; } finally { search.disabled=false; }
+    }); fields.append(helper,search);
+  }
+  libraryDialog.showModal();
+}
+$('addTrip').addEventListener('click',()=>openLibraryForm('trip'));
+$('addLetter').addEventListener('click',()=>openLibraryForm('letter'));
+$('libraryCancel').addEventListener('click',()=>libraryDialog.close());
+$('libraryDetailClose').addEventListener('click',()=> $('libraryDetailDialog').close());
+libraryForm.addEventListener('submit',async e=>{
+  e.preventDefault(); const submit=libraryForm.querySelector('[type="submit"]'); submit.disabled=true; $('libraryError').hidden=true;
+  const values=Object.fromEntries(new FormData(libraryForm));
+  const body={...values,...libraryEdit,action:libraryEdit.type==='photo'?'details':'save'};
+  try { await libraryPost(body); libraryDialog.close(); await loadLibrary(); if(body.type==='trip' && body.id && $('libraryDetailDialog').open) openTrip(body.id); if(body.type==='location' && body.id && $('libraryDetailDialog').open) openLocation(body.id); if(body.type==='letter' && body.id && $('libraryDetailDialog').open) openLetter(body.id); if(body.type==='photo' && lb.open) showPhoto(lbIndex); }
+  catch(err) { $('libraryError').textContent=err.message; $('libraryError').hidden=false; } finally { submit.disabled=false; }
+});
+async function deleteLibrary(type,id) {
+  if(!confirm(type==='trip'?'Xoá chuyến đi và các địa điểm? Ảnh vẫn được giữ trong album.':`Xoá ${type==='letter'?'thư':'địa điểm'} này? Ảnh liên quan vẫn được giữ trong album.`)) return;
+  try { await libraryPost({type,id,action:'delete'}); $('libraryDetailDialog').close(); await loadLibrary(); } catch(err) { alert(err.message); }
+}
+function openPhotoLinks(kind,id) { linkTarget={kind,id}; $('photoLinkStatus').textContent=''; renderPhotoLinks(); $('photoLinkDialog').showModal(); }
+function renderPhotoLinks() {
+  const grid=$('photoLinkGrid'); grid.replaceChildren();
+  for(const p of photoState.all) {
+    const label=node('label',null,'link-photo'); const input=document.createElement('input'); input.type='checkbox';
+    input.checked=library.links.some(l=>l.photo_id===p.id && l.kind===linkTarget.kind && l.target_id===linkTarget.id);
+    input.setAttribute('aria-label',p.caption || `Ảnh ${p.id}`);
+    const img=document.createElement('img'); img.loading='lazy'; img.src=media(`thumb/${p.id}.webp`); img.alt=p.caption || '';
+    input.addEventListener('change',async()=>{ input.disabled=true; try { await libraryPost({type:'photo',id:p.id,action:input.checked?'link':'unlink',kind:linkTarget.kind,target_id:linkTarget.id}); await loadLibrary(); } catch(err) { input.checked=!input.checked; $('photoLinkStatus').textContent=err.message; } finally { input.disabled=false; } });
+    label.append(img,input); grid.append(label);
+  }
+}
+$('photoLinkClose').addEventListener('click',()=> $('photoLinkDialog').close());
+$('linkedUpload').addEventListener('change',async e=>{
+  const input=e.target; input.disabled=true; let count=0;
+  try { for(const file of input.files) { $('photoLinkStatus').textContent=`Đang tải ${file.name}…`; const p=await uploadFile(file); photoState.all.push(p); await libraryPost({type:'photo',id:p.id,action:'link',kind:linkTarget.kind,target_id:linkTarget.id}); count++; } $('photoLinkStatus').textContent=`Đã tải và liên kết ${count} ảnh.`; await loadLibrary(); renderPhotoLinks(); }
+  catch(err) { $('photoLinkStatus').textContent=`Đã tải ${count} ảnh. Lỗi: ${err.message}`; await loadLibrary(); renderPhotoLinks(); } finally { input.value=''; input.disabled=false; }
+});
+function sourceName(l) {
+  if(l.kind==='event') return memoryEvents.find(e=>e.id===l.target_id)?.title;
+  if(l.kind==='diary') return memoryDiaries.find(d=>d.id===l.target_id)?.title;
+  if(l.kind==='trip') return library.trips.find(t=>t.id===l.target_id)?.name;
+  return library.locations.find(x=>x.id===l.target_id)?.name;
+}
+function photoUsage(photos) { const ids=new Set(photos.map(p=>p.id)); const names=[...new Set(library.links.filter(l=>ids.has(l.photo_id)).map(sourceName).filter(Boolean))]; return names.length?`Ảnh đang dùng tại: ${names.join(', ')}.`:'Ảnh không có liên kết nào.'; }
+function renderPhotoSources(photo) {
+  const box=$('photoSources'); box.replaceChildren();
+  for(const l of library.links.filter(l=>l.photo_id===photo.id)) {
+    const name=sourceName(l); if(!name) continue;
+    box.append(memoryButton(name,()=>{ lb.close(); if(l.kind==='event'||l.kind==='diary') { const id=l.kind==='event'?l.target_id:memoryDiaries.find(d=>d.id===l.target_id)?.event_id; activeEvent=id; renderEvent(id); if(!$('eventDialog').open) $('eventDialog').showModal(); } else if(l.kind==='trip') openTrip(l.target_id); else openLocation(l.target_id); }));
+  }
+}
+$('photoEdit').addEventListener('click',()=>{ const p=photoState.list[lbIndex]; if(p) openLibraryForm('photo',{id:p.id,caption:p.caption,taken:(p.taken||'').slice(0,10)}); });
+
+/* Video và tệp đính kèm được đọc qua API có xác thực. */
+let assetTarget;
+async function assetRequest(query, options={}) {
+  const res=await fetch(`${apiBase}/api/assets${query}`,{...options,headers:{...(options.headers||{}),authorization:`Bearer ${getToken()}`}});
+  if(!res.ok) { const data=await res.json().catch(()=>({})); throw new Error(data.error || `Lỗi ${res.status}`); }
+  return res;
+}
+async function openAssets(kind,id) {
+  assetTarget={kind,id}; $('assetFile').accept=kind==='diary'?'video/mp4,video/webm':''; $('assetsDialog').showModal(); await renderAssets();
+}
+async function renderAssets() {
+  const list=$('assetsList'); list.replaceChildren(); $('assetStatus').textContent='Đang tải…';
+  try {
+    const {assets}=await (await assetRequest(`?kind=${encodeURIComponent(assetTarget.kind)}&target=${encodeURIComponent(assetTarget.id)}`)).json();
+    $('assetStatus').textContent=assets.length?'':'Chưa có tệp đính kèm.';
+    for(const a of assets) {
+      const row=node('div',null,'diary-entry'); row.append(node('span',`${a.filename} · ${(a.size/1048576).toFixed(1)} MB`));
+      if (a.content_type.startsWith('video/')) row.append(memoryButton('Xem video',async()=>{ try { const response=await assetRequest(`?id=${encodeURIComponent(a.id)}`), url=URL.createObjectURL(await response.blob()), video=document.createElement('video'); video.controls=true; video.src=url; video.className='asset-video'; video.addEventListener('emptied',()=>URL.revokeObjectURL(url),{once:true}); row.append(video); video.play().catch(()=>{}); } catch(err) { $('assetStatus').textContent=err.message; } }));
+      row.append(memoryButton('Mở / tải',async()=>{
+        try { const response=await assetRequest(`?id=${encodeURIComponent(a.id)}`), blob=await response.blob(), url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download=a.filename; link.click(); setTimeout(()=>URL.revokeObjectURL(url),60000); }
+        catch(err){ $('assetStatus').textContent=err.message; }
+      }),memoryButton('Xoá',async()=>{ if(!confirm(`Xoá tệp ${a.filename}?`)) return; try { await assetRequest('?action=delete',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:a.id})}); await renderAssets(); } catch(err) { $('assetStatus').textContent=err.message; } },'link danger')); list.append(row);
+    }
+  } catch(err) { $('assetStatus').textContent=err.message; }
+}
+$('assetsClose').addEventListener('click',()=> $('assetsDialog').close());
+$('assetFile').addEventListener('change',async e=>{
+  const input=e.target; input.disabled=true;
+  try { for(const file of input.files) { $('assetStatus').textContent=`Đang tải ${file.name}…`; const form=new FormData(); form.append('kind',assetTarget.kind); form.append('target',assetTarget.id); form.append('file',file); await assetRequest('',{method:'POST',body:form}); } await renderAssets(); }
+  catch(err) { $('assetStatus').textContent=err.message; } finally { input.disabled=false; input.value=''; }
+});
+
+function memoryPhotoStrip(kind,id) {
+  const strip=node('div',null,'memory-photo-strip');
+  const photos=photoState.all.filter(p => library.links.some(l=>l.photo_id===p.id && l.kind===kind && l.target_id===id));
+  for(const photo of photos.slice(0,12)) {
+    const button=memoryButton('',()=>{ for(const key of ['photoYear','photoMonth','photoEvent','photoTrip','photoLocation','photoSearch']) $(key).value=''; render(); const index=photoState.list.findIndex(p=>p.id===photo.id); if(index>=0) openLightbox(index); },'memory-photo-button');
+    const img=document.createElement('img'); img.src=media(`thumb/${photo.id}.webp`); img.alt=photo.caption || 'Ảnh kỷ niệm'; img.loading='lazy'; button.append(img); strip.append(button);
+  }
+  return strip;
+}

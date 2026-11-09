@@ -759,3 +759,45 @@ body.selecting .tile.selected::after {
   .scroll-hint, .brand-heart, .sparkle { animation: none; }
   .tile, .tile img, .btn, .chip { transition: none; }
 }
+
+/* Timeline */
+.hero-heading { font-family: var(--serif); font-size: clamp(2.8rem, 8vw, 5.5rem); line-height: 1; margin: 0 0 .35em; }
+.hero-intro { color: #f4dce0; }
+.memory-eyebrow, .memory-date { color: var(--rose-gold); font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; }
+.timeline-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 16px; }
+.timeline-card { padding: 24px; background: var(--surface-glass); border: 1px solid var(--line); border-radius: var(--radius); }
+.timeline-card h3 { font-family: var(--serif); font-size: 1.4rem; margin: .5em 0; }
+.timeline-card p { overflow-wrap: anywhere; }
+.memory-detail, .memory-form { width: min(620px, 90vw); max-height: 85vh; overflow-y: auto; }
+.memory-form label { display: grid; gap: 6px; margin: 14px 0; }
+.memory-form label[hidden] { display: none; }
+.memory-actions { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; }
+.memory-year { color: var(--rose-gold); margin-bottom: 8px; }
+.diary-entry { border-top: 1px solid var(--line); padding: 12px 0; overflow-wrap: anywhere; }
+.diary-entry p { white-space: pre-wrap; }
+.danger { color: var(--danger); }
+@media (max-width: 720px) { .topbar nav { gap: 10px; overflow-x: auto; } .topbar nav a { white-space: nowrap; font-size: .75rem; } }
+.library-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 20px 0; }
+.library-filters label { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); flex: 1 1 130px; }
+.library-filters input, .library-filters select, .memory-form select { width: 100%; padding: 10px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.memory-map { height: 380px; border-radius: var(--radius); overflow: hidden; background: var(--surface); z-index: 0; }
+.leaflet-popup-content { color: #291e20; }
+.letter-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: 16px; margin: 22px 0; }
+.letter-card { padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(145deg,#342126,#201719); }
+.letter-icon { font-size: 2rem; color: var(--rose-gold); }
+.letter-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+.legacy-notes { margin-top: 32px; } .legacy-notes summary { cursor: pointer; color: var(--muted); }
+.link-photo-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); gap:8px; margin-top:20px; }
+.link-photo { position:relative; display:block; } .link-photo img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; } .link-photo input { position:absolute; top:6px; right:6px; width:20px; height:20px; accent-color:var(--accent); }
+#photoSources { display:flex; flex-wrap:wrap; gap:8px; }
+@media(max-width:600px) { .memory-map { height:280px; } .library-filters label { flex-basis: 42%; } }
+
+.location-picker { height: 220px; border-radius: 10px; z-index: 0; }
+#eventDialog, #memoryDialog, #libraryDialog, #libraryDetailDialog, #photoLinkDialog, #assetsDialog { width: min(650px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: 90vh; padding: 0; border: 0; border-radius: var(--radius); background: var(--surface); color: var(--ink); overflow: auto; }
+#eventDialog::backdrop, #memoryDialog::backdrop, #libraryDialog::backdrop, #libraryDetailDialog::backdrop, #photoLinkDialog::backdrop, #assetsDialog::backdrop { background: rgba(10, 8, 9, .78); }
+.memory-detail, .memory-form { width: 100%; max-height: none; }
+@media (max-width: 720px) { .topbar nav { min-width: 0; } .brand { flex-shrink: 0; } }
+.memory-photo-strip { display:flex; gap:8px; overflow-x:auto; margin:14px 0; }
+.memory-photo-button { padding:0; border:0; background:none; cursor:pointer; flex:0 0 96px; }
+.memory-photo-button img { width:96px; height:96px; object-fit:cover; border-radius:8px; }
+.asset-video { display:block; max-width:100%; max-height:50vh; margin:12px 0; }
