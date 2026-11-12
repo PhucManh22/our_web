@@ -88,8 +88,9 @@
         </div>
         <div class="head-actions">
           <p class="muted" id="photoCount"></p>
-          <button class="btn btn-sm btn-ghost" id="selectBtn" type="button">Chọn ảnh</button>
-          <button class="btn btn-sm" id="uploadBtn" type="button">＋ Thêm ảnh</button>
+          <button class="btn btn-sm" id="addAlbum" type="button">＋ Thêm Album</button>
+          <button class="btn btn-sm btn-ghost" id="selectBtn" type="button" hidden>Chọn ảnh</button>
+          <button class="btn btn-sm" id="uploadBtn" type="button" hidden>＋ Thêm ảnh</button>
           <input id="fileInput" type="file" accept="image/*" multiple hidden>
         </div>
       </div>
@@ -112,7 +113,10 @@
       </div><p id="albumFilterStatus" class="muted" role="status"></p>
       <!-- Danh sách Album theo Tháng (Gom nhóm ảnh) -->
       <div class="months-selector-wrap">
-        <div class="months-selector-label">Chọn tháng kỷ niệm để mở ảnh:</div>
+        <div class="months-selector-label">Chọn album kỷ niệm để mở ảnh:</div>
+        <div id="albumList" class="album-list"></div>
+        <div id="albumActions" class="memory-actions" hidden></div>
+        <div class="months-selector-label">Ảnh theo tháng:</div>
         <nav class="chips" id="chips" aria-label="Chọn tháng kỷ niệm"></nav>
       </div>
 
@@ -205,6 +209,7 @@
     <button class="link" id="logoutBtn" type="button">Đăng xuất</button>
   </footer>
 
+  <dialog id="albumDialog" aria-labelledby="albumDialogTitle"><form id="albumForm" class="card memory-form"><h2 id="albumDialogTitle">Album kỷ niệm</h2><label>Tên album <input name="title" required maxlength="160"></label><label>Thời gian <input name="album_month" type="month"></label><label>Sự kiện <select name="event_id"></select></label><label>Nhật ký <select name="diary_id"></select></label><label>Chuyến đi <select name="trip_id"></select></label><label>Địa điểm <select name="location_id"></select></label><p id="albumError" class="error" role="alert" hidden></p><div class="row end"><button class="link" id="albumCancel" type="button">Huỷ</button><button class="btn" type="submit">Lưu</button></div></form></dialog>
   <dialog id="assetsDialog" aria-label="Tệp đính kèm"><div class="card memory-detail"><button class="link" id="assetsClose" type="button">← Quay lại</button><h2>Tệp đính kèm</h2><input id="assetFile" type="file" multiple><p id="assetStatus" role="status"></p><div id="assetsList"></div></div></dialog>
   <dialog id="libraryDialog" aria-labelledby="libraryDialogTitle"><form id="libraryForm" class="card memory-form"><h2 id="libraryDialogTitle"></h2><div id="libraryFields"></div><p id="libraryError" class="error" role="alert" hidden></p><div class="row end"><button class="link" id="libraryCancel" type="button">Huỷ</button><button class="btn" type="submit">Lưu</button></div></form></dialog>
   <dialog id="libraryDetailDialog" aria-label="Chi tiết kỷ niệm"><div class="card memory-detail"><button class="link" id="libraryDetailClose" type="button">← Quay lại</button><div id="libraryDetail"></div></div></dialog>

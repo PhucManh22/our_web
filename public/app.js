@@ -1310,7 +1310,7 @@ function renderTimeline() {
   for (const event of memoryEvents) {
     const card = node('article', null, 'timeline-card');
     const image = document.createElement('img'); image.alt = ''; image.loading = 'lazy';
-    const linked = library.links.find(l => l.kind === 'event' && l.target_id === event.id);
+    const linked = event.cover_photo_id ? {photo_id:event.cover_photo_id} : library.links.find(l => l.kind === 'event' && l.target_id === event.id);
     image.src = linked ? media(`thumb/${linked.photo_id}.webp`) : media('hero.webp');
     const frame = node('div', null, 'timeline-photo'); frame.append(image);
     card.append(frame, node('h3', event.title), node('p', event.description, 'muted'), node('p', displayDate(event.event_date), 'memory-date'));
@@ -1335,7 +1335,7 @@ function renderEvent(id) {
   const box = $('eventDetail'); box.replaceChildren(); box.className = 'event-detail-layout';
   const cover = node('div', null, 'event-cover');
   const image = document.createElement('img'); image.alt = 'Ảnh kỷ niệm';
-  const linked = library.links.find(l => l.kind === 'event' && l.target_id === event.id);
+  const linked = event.cover_photo_id ? {photo_id:event.cover_photo_id} : library.links.find(l => l.kind === 'event' && l.target_id === event.id);
   image.src = linked ? media(`full/${linked.photo_id}.webp`) : media('hero.webp');
   cover.append(image, node('p', 'Together forever ♡'));
   const center = node('div', null, 'event-detail-center');
@@ -1345,7 +1345,7 @@ function renderEvent(id) {
   counter.append(node('span', 'Đã cùng nhau lưu giữ kỷ niệm'), node('strong', elapsed.toLocaleString('vi-VN')), node('em', 'ngày'));
   center.append(title, node('p', `${event.description} · ${displayDate(event.event_date)}`), counter, memoryPhotoStrip('event',event.id));
   const actions = node('div', null, 'memory-actions');
-  actions.append(memoryButton('＋ Thêm ảnh', () => openPhotoLinks('event', event.id)));
+  actions.append(memoryButton('Đổi ảnh avatar', () => openPhotoLinks('cover', event.id)));
   for (const trip of library.trips.filter(t => t.event_id === event.id)) actions.append(memoryButton(`Chuyến đi: ${trip.name}`, () => openTrip(trip.id)));
   for (const letter of library.letters.filter(l => l.event_id === event.id)) actions.append(memoryButton(`Thư: ${letter.title}`, () => openLetter(letter.id)));
   actions.append(memoryButton('Sửa sự kiện', () => openMemoryForm('event', event)), memoryButton('Xoá sự kiện', () => deleteMemory('event', event.id), 'link danger')); center.append(actions);
@@ -1358,7 +1358,7 @@ function renderEvent(id) {
     if (lastYear !== diary.year) { journal.append(node('h4', String(diary.year), 'memory-year')); lastYear = diary.year; }
     const entry = node('article', null, 'diary-entry');
     entry.append(node('h4', diary.title), node('p', `${displayDate(diary.entry_date)}${diary.location ? ` · ${diary.location}` : ''}`, 'muted small'), node('p', diary.content));
-    const buttons = node('div', null, 'memory-actions'); buttons.append(memoryButton('Ảnh', () => openPhotoLinks('diary', diary.id)), memoryButton('Video', () => openAssets('diary', diary.id)), memoryButton('Sửa', () => openMemoryForm('diary', diary)), memoryButton('Xoá', () => deleteMemory('diary', diary.id), 'link danger')); entry.append(memoryPhotoStrip('diary',diary.id), buttons); journal.append(entry);
+    const buttons = node('div', null, 'memory-actions'); buttons.append(memoryButton('＋ Thêm Album', () => openAlbumForm({diary_id:diary.id,event_id:diary.event_id,album_month:diary.entry_date.slice(0,7),title:diary.title})), ...library.albums.filter(a => a.diary_id === diary.id).map(a => memoryButton(`Album: ${a.title}`, () => selectAlbum(a.id))), memoryButton('Ảnh', () => openPhotoLinks('diary', diary.id)), memoryButton('Video', () => openAssets('diary', diary.id)), memoryButton('Sửa', () => openMemoryForm('diary', diary)), memoryButton('Xoá', () => deleteMemory('diary', diary.id), 'link danger')); entry.append(memoryPhotoStrip('diary',diary.id), buttons); journal.append(entry);
   }
   journal.append(memoryButton('＋ Thêm nhật ký', () => openMemoryForm('diary', null), 'btn btn-sm'));
   box.append(cover,center,journal);
@@ -1391,31 +1391,34 @@ async function deleteMemory(type, id) {
 }
 
 /* ---------- Chuyến đi, thư và liên kết ảnh ---------- */
-let library = { trips: [], locations: [], letters: [], links: [], details: [] };
+let library = { trips: [], locations: [], letters: [], links: [], details: [], albums: [], albumPhotos: [] };
+let activeAlbum = '', editingAlbum = '';
 let libraryEdit = null, linkTarget = null, mapInstance, mapMarkers;
 const libraryDialog = $('libraryDialog'), libraryForm = $('libraryForm');
 const libraryPost = (body) => authApiRaw('/api/library', { method: 'POST', body });
 async function loadLibrary() {
   try {
     library = await authApiRaw('/api/library');
+    library.albums ||= []; library.albumPhotos ||= [];
     for (const p of photoState.all) {
       const detail = library.details.find(d => d.photo_id === p.id);
       if (detail) { if (detail.taken) p.taken = detail.taken; p.caption = detail.caption; }
     }
-    updateLibraryFilters(); renderTimeline(); renderTrips(); renderLetters(); render();
+    updateLibraryFilters(); renderTimeline(); renderTrips(); renderLetters(); renderAlbums(); render();
     if (activeEvent && $('eventDialog').open) renderEvent(activeEvent);
   } catch (err) { renderTrips(); $('mapStatus').textContent = `Không tải được dữ liệu chuyến đi: ${err.message}`; $('letterStatus').textContent = `Không tải được thư: ${err.message}`; }
 }
 function photoLinkedTo(p, kind, id) {
   if (!id) return true;
-  return library.links.some(l => l.photo_id === p.id && ((l.kind === kind && l.target_id === id) ||
+  return library.albumPhotos.some(ap => ap.photo_id === p.id && library.albums.some(a => a.id === ap.album_id && (a[`${kind}_id`] === id || (kind === 'event' && memoryDiaries.some(d => d.id === a.diary_id && d.event_id === id)) || (kind === 'trip' && library.locations.some(loc => loc.id === a.location_id && loc.trip_id === id))))) || library.links.some(l => l.photo_id === p.id && ((l.kind === kind && l.target_id === id) ||
     (kind === 'event' && l.kind === 'diary' && memoryDiaries.some(d => d.id === l.target_id && d.event_id === id)) ||
     (kind === 'trip' && l.kind === 'location' && library.locations.some(x => x.id === l.target_id && x.trip_id === id))));
 }
 function filteredPhotos() {
   const q = $('photoSearch').value.trim().toLocaleLowerCase('vi');
   return photoState.all.filter(p => {
-    const date = (p.taken || '').slice(0, 10);
+    const date = (library.albums.find(a => a.id === activeAlbum)?.album_month || p.taken || '').slice(0, 10);
+    if (activeAlbum && !library.albumPhotos.some(ap => ap.album_id === activeAlbum && ap.photo_id === p.id)) return false;
     const locationNames = library.links.filter(l => l.photo_id === p.id && l.kind === 'location').map(l => library.locations.find(x => x.id === l.target_id)?.name || '').join(' ');
     return (!$('photoYear').value || date.slice(0,4) === $('photoYear').value) && (!$('photoMonth').value || date.slice(5,7) === $('photoMonth').value) &&
       photoLinkedTo(p,'event',$('photoEvent').value) && photoLinkedTo(p,'trip',$('photoTrip').value) && photoLinkedTo(p,'location',$('photoLocation').value) &&
@@ -1438,6 +1441,7 @@ function updateLibraryFilters() {
 for (const id of ['photoSearch','photoYear','photoMonth','photoEvent','photoTrip','photoLocation']) $(id).addEventListener('input',() => { activeMonth = null; render(); $('albumFilterStatus').textContent = `${photoState.list.length} ảnh phù hợp`; });
 for (const id of ['mapTripFilter','mapYearFilter']) $(id).addEventListener('change',renderTrips);
 function openAlbum(kind,id) {
+  activeAlbum = ''; renderAlbums();
   for (const key of ['photoYear','photoMonth','photoEvent','photoTrip','photoLocation','photoSearch']) $(key).value = '';
   $(kind === 'trip' ? 'photoTrip' : kind === 'event' ? 'photoEvent' : 'photoLocation').value = id;
   if ($('libraryDetailDialog').open) $('libraryDetailDialog').close();
@@ -1576,22 +1580,23 @@ async function deleteLibrary(type,id) {
   if(!confirm(type==='trip'?'Xoá chuyến đi và các địa điểm? Ảnh vẫn được giữ trong album.':`Xoá ${type==='letter'?'thư':'địa điểm'} này? Ảnh liên quan vẫn được giữ trong album.`)) return;
   try { await libraryPost({type,id,action:'delete'}); $('libraryDetailDialog').close(); await loadLibrary(); } catch(err) { alert(err.message); }
 }
-function openPhotoLinks(kind,id) { linkTarget={kind,id}; $('photoLinkStatus').textContent=''; renderPhotoLinks(); $('photoLinkDialog').showModal(); }
+function openPhotoLinks(kind,id) { linkTarget={kind,id}; $('linkedUpload').multiple = kind !== 'cover'; $('photoLinkStatus').textContent=''; renderPhotoLinks(); $('photoLinkDialog').showModal(); }
 function renderPhotoLinks() {
   const grid=$('photoLinkGrid'); grid.replaceChildren();
   for(const p of photoState.all) {
     const label=node('label',null,'link-photo'); const input=document.createElement('input'); input.type='checkbox';
-    input.checked=library.links.some(l=>l.photo_id===p.id && l.kind===linkTarget.kind && l.target_id===linkTarget.id);
+    input.type = linkTarget.kind === 'cover' ? 'radio' : 'checkbox'; input.name = linkTarget.kind === 'cover' ? 'event-cover' : '';
+    input.checked=linkTarget.kind === 'album' ? library.albumPhotos.some(l=>l.photo_id===p.id && l.album_id===linkTarget.id) : linkTarget.kind === 'cover' ? memoryEvents.find(e=>e.id===linkTarget.id)?.cover_photo_id === p.id : library.links.some(l=>l.photo_id===p.id && l.kind===linkTarget.kind && l.target_id===linkTarget.id);
     input.setAttribute('aria-label',p.caption || `Ảnh ${p.id}`);
     const img=document.createElement('img'); img.loading='lazy'; img.src=media(`thumb/${p.id}.webp`); img.alt=p.caption || '';
-    input.addEventListener('change',async()=>{ input.disabled=true; try { await libraryPost({type:'photo',id:p.id,action:input.checked?'link':'unlink',kind:linkTarget.kind,target_id:linkTarget.id}); await loadLibrary(); } catch(err) { input.checked=!input.checked; $('photoLinkStatus').textContent=err.message; } finally { input.disabled=false; } });
+    input.addEventListener('change',async()=>{ input.disabled=true; try { if (linkTarget.kind === 'cover') { await libraryPost({type:'cover',event_id:linkTarget.id,photo_id:p.id}); await loadMemories(); } else if (linkTarget.kind === 'album') await libraryPost({type:'albumPhoto',album_id:linkTarget.id,photo_id:p.id,action:input.checked?'link':'unlink'}); else await libraryPost({type:'photo',id:p.id,action:input.checked?'link':'unlink',kind:linkTarget.kind,target_id:linkTarget.id}); await loadLibrary(); } catch(err) { input.checked=!input.checked; $('photoLinkStatus').textContent=err.message; } finally { input.disabled=false; } });
     label.append(img,input); grid.append(label);
   }
 }
 $('photoLinkClose').addEventListener('click',()=> $('photoLinkDialog').close());
 $('linkedUpload').addEventListener('change',async e=>{
   const input=e.target; input.disabled=true; let count=0;
-  try { for(const file of input.files) { $('photoLinkStatus').textContent=`Đang tải ${file.name}…`; const p=await uploadFile(file); photoState.all.push(p); await libraryPost({type:'photo',id:p.id,action:'link',kind:linkTarget.kind,target_id:linkTarget.id}); count++; } $('photoLinkStatus').textContent=`Đã tải và liên kết ${count} ảnh.`; await loadLibrary(); renderPhotoLinks(); }
+  try { for(const file of input.files) { $('photoLinkStatus').textContent=`Đang tải ${file.name}…`; const p=await uploadFile(file); photoState.all.push(p); if (linkTarget.kind === 'album') await libraryPost({type:'albumPhoto',album_id:linkTarget.id,photo_id:p.id,action:'link'}); else if (linkTarget.kind === 'cover') { await libraryPost({type:'cover',event_id:linkTarget.id,photo_id:p.id}); await loadMemories(); } else await libraryPost({type:'photo',id:p.id,action:'link',kind:linkTarget.kind,target_id:linkTarget.id}); count++; } $('photoLinkStatus').textContent=`Đã tải và liên kết ${count} ảnh.`; await loadLibrary(); renderPhotoLinks(); }
   catch(err) { $('photoLinkStatus').textContent=`Đã tải ${count} ảnh. Lỗi: ${err.message}`; await loadLibrary(); renderPhotoLinks(); } finally { input.value=''; input.disabled=false; }
 });
 function sourceName(l) {
@@ -1644,10 +1649,53 @@ $('assetFile').addEventListener('change',async e=>{
 
 function memoryPhotoStrip(kind,id) {
   const strip=node('div',null,'memory-photo-strip');
-  const photos=photoState.all.filter(p => library.links.some(l=>l.photo_id===p.id && l.kind===kind && l.target_id===id));
+  const photos=photoState.all.filter(p => library.links.some(l=>l.photo_id===p.id && l.kind===kind && l.target_id===id) || library.albumPhotos.some(ap=>ap.photo_id===p.id && library.albums.some(a=>a.id===ap.album_id && a[`${kind}_id`]===id)));
   for(const photo of photos.slice(0,12)) {
     const button=memoryButton('',()=>{ for(const key of ['photoYear','photoMonth','photoEvent','photoTrip','photoLocation','photoSearch']) $(key).value=''; render(); const index=photoState.list.findIndex(p=>p.id===photo.id); if(index>=0) openLightbox(index); },'memory-photo-button');
     const img=document.createElement('img'); img.src=media(`thumb/${photo.id}.webp`); img.alt=photo.caption || 'Ảnh kỷ niệm'; img.loading='lazy'; button.append(img); strip.append(button);
   }
   return strip;
+}
+
+/* Album giữ liên kết tới ảnh trong thư viện, không sao chép tệp. */
+function renderAlbums() {
+  const list = $('albumList'); list.replaceChildren();
+  for (const a of library.albums) {
+    const count = library.albumPhotos.filter(p => p.album_id === a.id).length;
+    const button = memoryButton(`${a.title} · ${count} ảnh`, () => selectAlbum(a.id), 'chip');
+    button.classList.toggle('active', activeAlbum === a.id); list.append(button);
+  }
+  if (!library.albums.length) list.append(node('p','Chưa có album. Hãy tạo album đầu tiên.','muted'));
+  const actions=$('albumActions'); actions.replaceChildren(); actions.hidden=!activeAlbum;
+  const album=library.albums.find(a=>a.id===activeAlbum);
+  if (album) actions.append(memoryButton('＋ Thêm / quản lý ảnh',()=>openPhotoLinks('album',album.id),'btn btn-sm'),memoryButton('Sửa album',()=>openAlbumForm(album)),memoryButton('Xoá album',()=>deleteAlbum(album.id),'link danger'));
+}
+function selectAlbum(id) {
+  activeAlbum=id; activeMonth=null;
+  for (const key of ['photoYear','photoMonth','photoEvent','photoTrip','photoLocation','photoSearch']) $(key).value='';
+  if ($('eventDialog').open) $('eventDialog').close();
+  if ($('libraryDetailDialog').open) $('libraryDetailDialog').close();
+  renderAlbums(); render(); $('photos').scrollIntoView();
+}
+function openAlbumForm(item={}) {
+  editingAlbum=item.id || ''; const form=$('albumForm'); form.reset(); $('albumError').hidden=true;
+  $('albumDialogTitle').textContent=editingAlbum?'Sửa album':'Thêm Album';
+  form.elements.title.value=item.title || ''; form.elements.album_month.value=item.album_month || '';
+  for (const [field,entries] of [['event_id',memoryEvents.map(x=>[x.id,x.title])],['diary_id',memoryDiaries.map(x=>[x.id,x.title])],['trip_id',library.trips.map(x=>[x.id,x.name])],['location_id',library.locations.map(x=>[x.id,x.name])]]) {
+    const select=form.elements[field]; select.replaceChildren(new Option('Không liên kết','')); for(const [id,name] of entries) select.add(new Option(name,id)); select.value=item[field] || '';
+  }
+  $('albumDialog').showModal();
+}
+$('addAlbum').addEventListener('click',()=>openAlbumForm());
+$('albumCancel').addEventListener('click',()=>$('albumDialog').close());
+$('albumForm').addEventListener('submit',async e=>{
+  e.preventDefault(); const form=e.currentTarget, submit=form.querySelector('[type=submit]'); submit.disabled=true; $('albumError').hidden=true;
+  const id=editingAlbum || crypto.randomUUID(); const body={type:'album',action:'save',id,...Object.fromEntries(new FormData(form))};
+  try { await libraryPost(body); $('albumDialog').close(); activeAlbum=id; await loadLibrary(); }
+  catch(err) { $('albumError').textContent=err.message; $('albumError').hidden=false; }
+  finally { submit.disabled=false; }
+});
+async function deleteAlbum(id) {
+  if (!confirm('Xoá album này? Ảnh vẫn được giữ trong thư viện.')) return;
+  try { await libraryPost({type:'album',action:'delete',id}); activeAlbum=''; await loadLibrary(); } catch(err) { alert(err.message); }
 }

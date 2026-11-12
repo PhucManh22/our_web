@@ -72,3 +72,9 @@ Bản phát triển mở rộng dùng các migration `0005`–`0007`: sự kiệ
 Trước khi triển khai API mới cần tạo bucket R2 riêng tư `our-web-private-media`, áp dụng migration D1 và triển khai Pages Functions. Đây là thao tác trên hạ tầng thật; các thay đổi trong repo không tự tạo bucket hay áp dụng migration production.
 
 **Giới hạn riêng tư hiện tại:** ảnh cũ và ảnh upload qua chức năng ảnh vẫn nằm trong bucket `our-web-media` công khai. Màn đăng nhập không bảo vệ URL của các ảnh đó. Để đáp ứng yêu cầu ảnh riêng tư cần chuyển toàn bộ ảnh sang bucket private, thay cách truy cập ảnh bằng API có xác thực và tắt public access sau khi kiểm tra dữ liệu; chưa thực hiện chuyển đổi này.
+
+## Album kỷ niệm
+
+Album lưu liên kết đến ảnh trong thư viện; một ảnh có thể nằm trong nhiều album mà không sao chép file. Mỗi album có thể gắn với nhật ký, sự kiện, chuyến đi, địa điểm và tháng. Xoá album chỉ gỡ các liên kết, không xoá ảnh. Migration `0008_albums.sql` gom ảnh tháng 12/2025 vào album ban đầu, dựa trên ngày đã chỉnh trong D1 hoặc metadata có sẵn.
+
+Khi phát hành phiên bản này, chạy migration D1 trước, sau đó triển khai Pages Functions và cuối cùng phát hành frontend; frontend mới cần API và schema album mới.

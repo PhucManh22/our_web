@@ -930,3 +930,7 @@ body { background-attachment:scroll; }
 .location-search { justify-self:start; background:#614047; color:#ffe7e4; border:1px solid #a5757b; border-radius:30px; padding:9px 16px; cursor:pointer; font:13px var(--sans); }
 #libraryForm > .row { margin-top:22px; }
 @media(max-width:520px) { #libraryDialog .memory-form { padding:20px; } #libraryFields { gap:12px; } #libraryFields > label { font-size:12px; } }
+
+.album-list { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
+#albumDialog { width:min(620px,calc(100vw - 24px)); max-height:90vh; padding:0; border:0; border-radius:var(--radius); background:var(--surface); color:var(--ink); }
+#albumDialog::backdrop { background:rgba(10,8,9,.78); }
