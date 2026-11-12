@@ -111,17 +111,15 @@
         <label>Chuyến đi <select id="photoTrip"><option value="">Tất cả</option></select></label>
         <label>Địa điểm <select id="photoLocation"><option value="">Tất cả</option></select></label>
       </div><p id="albumFilterStatus" class="muted" role="status"></p>
-      <!-- Danh sách Album theo Tháng (Gom nhóm ảnh) -->
+      <!-- Danh sách album -->
       <div class="months-selector-wrap">
         <div class="months-selector-label">Chọn album kỷ niệm để mở ảnh:</div>
         <div id="albumList" class="album-list"></div>
         <div id="albumActions" class="memory-actions" hidden></div>
-        <div class="months-selector-label">Ảnh theo tháng:</div>
-        <nav class="chips" id="chips" aria-label="Chọn tháng kỷ niệm"></nav>
       </div>
 
-      <!-- Khung hiển thị ảnh của Tháng được chọn -->
-      <div class="active-month-view" id="activeMonthView">
+      <!-- Ảnh trong album được chọn -->
+      <div class="active-month-view" id="activeMonthView" hidden>
         <div class="month-view-head">
           <div class="month-view-title-wrap">
             <h3 id="activeMonthTitle">—</h3>
@@ -137,7 +135,9 @@
           </div>
         </div>
 
-        <!-- 3D Coverflow Viewer cho toàn bộ ảnh trong tháng -->
+        <p class="muted" id="albumEmpty" hidden>Album này chưa có ảnh. Chọn “Thêm / quản lý ảnh” để thêm ảnh.</p>
+
+        <!-- Xem ảnh trong album -->
         <div class="coverflow-section" id="coverflowSection">
           <div class="coverflow-wrap" id="coverflowWrap">
             <div class="coverflow" id="coverflow"></div>
@@ -153,7 +153,7 @@
           </div>
         </div>
 
-        <!-- Lưới ảnh (Grid) cho tháng đang chọn -->
+        <!-- Lưới ảnh trong album -->
         <div class="grid-section" id="gridSection" hidden>
           <div id="months"></div>
         </div>
@@ -213,7 +213,7 @@
   <dialog id="assetsDialog" aria-label="Tệp đính kèm"><div class="card memory-detail"><button class="link" id="assetsClose" type="button">← Quay lại</button><h2>Tệp đính kèm</h2><input id="assetFile" type="file" multiple><p id="assetStatus" role="status"></p><div id="assetsList"></div></div></dialog>
   <dialog id="libraryDialog" aria-labelledby="libraryDialogTitle"><form id="libraryForm" class="card memory-form"><h2 id="libraryDialogTitle"></h2><div id="libraryFields"></div><p id="libraryError" class="error" role="alert" hidden></p><div class="row end"><button class="link" id="libraryCancel" type="button">Huỷ</button><button class="btn" type="submit">Lưu</button></div></form></dialog>
   <dialog id="libraryDetailDialog" aria-label="Chi tiết kỷ niệm"><div class="card memory-detail"><button class="link" id="libraryDetailClose" type="button">← Quay lại</button><div id="libraryDetail"></div></div></dialog>
-  <dialog id="photoLinkDialog" aria-label="Liên kết ảnh"><div class="card memory-detail"><button class="link" id="photoLinkClose" type="button">← Quay lại</button><h2>Ảnh trong thư viện</h2><p class="muted">Chọn ảnh có sẵn hoặc tải ảnh mới để liên kết.</p><input id="linkedUpload" type="file" accept="image/*" multiple><p id="photoLinkStatus" role="status"></p><div id="photoLinkGrid" class="link-photo-grid"></div></div></dialog>
+  <dialog id="photoLinkDialog" aria-label="Liên kết ảnh"><div class="card memory-detail"><button class="link" id="photoLinkClose" type="button">← Quay lại</button><h2>Ảnh trong thư viện</h2><p class="muted" id="photoLinkHelp">Chọn ảnh có sẵn hoặc tải ảnh mới để liên kết.</p><input id="linkedUpload" type="file" accept="image/*" multiple><p id="photoLinkStatus" role="status"></p><div id="photoLinkGrid" class="link-photo-grid"></div></div></dialog>
   <dialog id="memoryDialog" aria-labelledby="memoryDialogTitle">
     <form id="memoryForm" class="card memory-form">
       <h2 id="memoryDialogTitle">Sự kiện</h2>
@@ -222,6 +222,7 @@
       <label id="memoryYearLabel" hidden>Năm kỷ niệm <input name="year" type="number" min="1900" max="9999"></label>
       <label id="memoryLocationLabel" hidden>Địa điểm <input name="location" maxlength="300"></label>
       <label>Nội dung <textarea name="description" rows="4" maxlength="5000"></textarea></label>
+      <div id="diaryAlbumOptions" hidden><label class="diary-album-option"><input name="createAlbum" type="checkbox"> ＋ Thêm Album cho nhật ký này</label><label id="diaryAlbumTitleLabel" hidden>Tên album <input name="albumTitle" maxlength="160" placeholder="Để trống để dùng tên nhật ký"></label></div>
       <p id="memoryError" class="error" role="alert" hidden></p>
       <div class="row end"><button class="link" id="memoryCancel" type="button">Huỷ</button><button class="btn" type="submit">Lưu</button></div>
     </form>
