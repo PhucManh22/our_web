@@ -1514,6 +1514,18 @@ function openLibraryForm(type,item={}) {
     else input.value=initial;
     wrap.append(input); fields.append(wrap);
   }
+  if (type === 'trip' && !item.id) {
+    const wrap = node('label', 'Album kỷ niệm (không bắt buộc)', 'trip-album-field');
+    const select = document.createElement('select'); select.name = 'album_id';
+    select.add(new Option('Chưa chọn album', ''));
+    for (const album of library.albums) {
+      const trip = library.trips.find(t => t.id === album.trip_id);
+      const option = new Option(trip ? `${album.title} · đã liên kết ${trip.name}` : album.title, album.id);
+      option.disabled = !!album.trip_id; select.add(option);
+    }
+    if (!library.albums.length) select.add(new Option('Chưa có album', '', true, false));
+    wrap.append(select); fields.append(wrap);
+  }
   if (type === 'location' || (type === 'trip' && !item.id)) {
     if (type === 'trip') {
       const heading=node('div',null,'trip-location-heading'); heading.append(node('h3','Ghim địa điểm đầu tiên'),node('p','Chọn một điểm trên bản đồ hoặc tìm theo địa chỉ. Bạn có thể thêm các địa điểm khác sau.','muted small')); fields.append(heading);
@@ -1558,6 +1570,14 @@ libraryForm.addEventListener('submit',async e=>{
     if (libraryEdit.addingLocation && values.latitude && values.longitude) {
       try { await libraryPost({type:'location', action:'save', id:libraryEdit.locationId, trip_id:libraryEdit.id, name:values.place_name, address:values.address, latitude:values.latitude, longitude:values.longitude}); }
       catch (err) { throw new Error(`Đã lưu chuyến đi nhưng chưa ghim được địa điểm: ${err.message}. Hãy thử lưu lại.`); }
+    }
+    if (libraryEdit.type === 'trip' && libraryEdit.addingLocation && values.album_id) {
+      try {
+        const current = await authApiRaw('/api/library');
+        const album = (current.albums || []).find(a => a.id === values.album_id);
+        if (!album || (album.trip_id && album.trip_id !== libraryEdit.id)) throw new Error('Album không còn khả dụng; hãy chọn album khác.');
+        await libraryPost({ ...album, type:'album', action:'save', trip_id:libraryEdit.id });
+      } catch (err) { throw new Error(`Đã lưu chuyến đi nhưng chưa liên kết được album: ${err.message} Hãy thử lưu lại.`); }
     }
     libraryDialog.close(); await loadLibrary(); if(body.type==='trip' && body.id && $('libraryDetailDialog').open) openTrip(body.id); if(body.type==='location' && body.id && $('libraryDetailDialog').open) openLocation(body.id); if(body.type==='letter' && body.id && $('libraryDetailDialog').open) openLetter(body.id); if(body.type==='photo' && lb.open) showPhoto(lbIndex);
   }

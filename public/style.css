@@ -945,3 +945,5 @@ body { background-attachment:scroll; }
 .trip-album-row span { flex:1 1 180px; overflow-wrap:anywhere; }
 .trip-album-form label { flex:1 1 200px; display:grid; gap:6px; }
 .trip-album-form select { width:100%; padding:10px; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); }
+
+#libraryFields > .trip-album-field { grid-column:1 / -1; }
