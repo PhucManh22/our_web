@@ -111,17 +111,15 @@
         <label>Chuyến đi <select id="photoTrip"><option value="">Tất cả</option></select></label>
         <label>Địa điểm <select id="photoLocation"><option value="">Tất cả</option></select></label>
       </div><p id="albumFilterStatus" class="muted" role="status"></p>
-      <!-- Danh sách Album theo Tháng (Gom nhóm ảnh) -->
+      <!-- Danh sách album -->
       <div class="months-selector-wrap">
         <div class="months-selector-label">Chọn album kỷ niệm để mở ảnh:</div>
         <div id="albumList" class="album-list"></div>
         <div id="albumActions" class="memory-actions" hidden></div>
-        <div class="months-selector-label">Ảnh theo tháng:</div>
-        <nav class="chips" id="chips" aria-label="Chọn tháng kỷ niệm"></nav>
       </div>
 
-      <!-- Khung hiển thị ảnh của Tháng được chọn -->
-      <div class="active-month-view" id="activeMonthView">
+      <!-- Ảnh trong album được chọn -->
+      <div class="active-month-view" id="activeMonthView" hidden>
         <div class="month-view-head">
           <div class="month-view-title-wrap">
             <h3 id="activeMonthTitle">—</h3>
@@ -137,7 +135,9 @@
           </div>
         </div>
 
-        <!-- 3D Coverflow Viewer cho toàn bộ ảnh trong tháng -->
+        <p class="muted" id="albumEmpty" hidden>Album này chưa có ảnh. Chọn “Thêm / quản lý ảnh” để thêm ảnh.</p>
+
+        <!-- Xem ảnh trong album -->
         <div class="coverflow-section" id="coverflowSection">
           <div class="coverflow-wrap" id="coverflowWrap">
             <div class="coverflow" id="coverflow"></div>
@@ -153,7 +153,7 @@
           </div>
         </div>
 
-        <!-- Lưới ảnh (Grid) cho tháng đang chọn -->
+        <!-- Lưới ảnh trong album -->
         <div class="grid-section" id="gridSection" hidden>
           <div id="months"></div>
         </div>
