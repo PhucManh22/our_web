@@ -53,7 +53,7 @@ async function handle(ctx) {
       const row = /^[a-f0-9]{12}$/.test(id) ? await env.DB.prepare('SELECT original FROM photos WHERE id = ?').bind(id).first() : null;
       if (row) { // ảnh upload từ web
         await env.MEDIA.delete([`thumb/${id}.webp`, `full/${id}.webp`, `original/${row.original}`]);
-        await env.DB.batch([env.DB.prepare('DELETE FROM photo_links WHERE photo_id = ?').bind(id), env.DB.prepare('DELETE FROM photo_details WHERE photo_id = ?').bind(id), env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(id)]);
+        await env.DB.batch([env.DB.prepare('DELETE FROM album_photos WHERE photo_id = ?').bind(id), env.DB.prepare('UPDATE events SET cover_photo_id=NULL WHERE cover_photo_id=?').bind(id), env.DB.prepare('DELETE FROM photo_links WHERE photo_id = ?').bind(id), env.DB.prepare('DELETE FROM photo_details WHERE photo_id = ?').bind(id), env.DB.prepare('DELETE FROM photos WHERE id = ?').bind(id)]);
         deleted.push(id);
         continue;
       }
@@ -61,7 +61,7 @@ async function handle(ctx) {
       const original = String(it?.original ?? '');
       if (!/^[a-z0-9-]{1,120}$/.test(id) || !/^[A-Za-z0-9._() -]{1,200}$/.test(original)) continue;
       await env.MEDIA.delete([`thumb/${id}.webp`, `full/${id}.webp`, `original/${original}`]);
-      await env.DB.batch([env.DB.prepare('DELETE FROM photo_links WHERE photo_id = ?').bind(id), env.DB.prepare('DELETE FROM photo_details WHERE photo_id = ?').bind(id), env.DB.prepare('INSERT OR IGNORE INTO deleted_photos (id) VALUES (?)').bind(id)]);
+      await env.DB.batch([env.DB.prepare('DELETE FROM album_photos WHERE photo_id = ?').bind(id), env.DB.prepare('UPDATE events SET cover_photo_id=NULL WHERE cover_photo_id=?').bind(id), env.DB.prepare('DELETE FROM photo_links WHERE photo_id = ?').bind(id), env.DB.prepare('DELETE FROM photo_details WHERE photo_id = ?').bind(id), env.DB.prepare('INSERT OR IGNORE INTO deleted_photos (id) VALUES (?)').bind(id)]);
       deleted.push(id);
     }
     return json({ deleted });
