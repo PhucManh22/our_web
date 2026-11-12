@@ -1367,7 +1367,8 @@ function openMemoryForm(type, item) {
   editingMemory = { type, id: item?.id || '' };
   memoryForm.reset(); $('memoryError').hidden = true;
   $('memoryDialogTitle').textContent = `${item ? 'Sửa' : 'Thêm'} ${type === 'event' ? 'sự kiện' : 'nhật ký'}`;
-  $('memoryYearLabel').hidden = $('memoryLocationLabel').hidden = type !== 'diary';
+  $('memoryYearLabel').hidden = $('memoryLocationLabel').hidden = $('diaryAlbumOptions').hidden = type !== 'diary';
+  $('diaryAlbumTitleLabel').hidden = true;
   const f = memoryForm.elements;
   f.title.value = item?.title || ''; f.date.value = item?.event_date || item?.entry_date || '';
   f.year.value = item?.year || new Date().getFullYear(); f.location.value = item?.location || '';
@@ -1377,16 +1378,26 @@ function openMemoryForm(type, item) {
 $('addEvent').addEventListener('click', () => openMemoryForm('event', null));
 $('eventClose').addEventListener('click', () => { $('eventDialog').close(); activeEvent = ''; });
 $('memoryCancel').addEventListener('click', () => memoryDialog.close());
+memoryForm.elements.createAlbum.addEventListener('change', e => { $('diaryAlbumTitleLabel').hidden = !e.target.checked; });
 memoryForm.addEventListener('submit', async (e) => {
   e.preventDefault(); const f = memoryForm.elements, submit = memoryForm.querySelector('[type="submit"]'); submit.disabled = true; $('memoryError').hidden = true;
   const data = { ...editingMemory, action: 'save', title: f.title.value, date: f.date.value, year: Number(f.year.value), eventId: activeEvent, location: f.location.value, description: f.description.value, content: f.description.value };
-  try { await authApiRaw('/api/memories', { method: 'POST', body: data }); memoryDialog.close(); await loadMemories(); }
+  try {
+    const saved = await authApiRaw('/api/memories', { method: 'POST', body: data });
+    editingMemory.id = saved.id;
+    if (editingMemory.type === 'diary' && f.createAlbum.checked) {
+      editingMemory.albumId ||= crypto.randomUUID();
+      try { await libraryPost({type:'album',action:'save',id:editingMemory.albumId,title:f.albumTitle.value.trim() || data.title,album_month:data.date.slice(0,7),event_id:activeEvent,diary_id:saved.id}); }
+      catch (err) { throw new Error(`Đã lưu nhật ký nhưng chưa tạo được album: ${err.message}. Hãy thử lưu lại.`); }
+    }
+    memoryDialog.close(); await loadMemories(); await loadLibrary();
+  }
   catch (err) { $('memoryError').textContent = err.message; $('memoryError').hidden = false; }
   finally { submit.disabled = false; }
 });
 async function deleteMemory(type, id) {
   if (!confirm(type === 'event' ? 'Xoá sự kiện và tất cả nhật ký thuộc sự kiện này?' : 'Xoá nhật ký này?')) return;
-  try { await authApiRaw('/api/memories', { method: 'POST', body: { type, action: 'delete', id } }); await loadMemories(); }
+  try { await authApiRaw('/api/memories', { method: 'POST', body: { type, action: 'delete', id } }); await loadMemories(); await loadLibrary(); }
   catch (err) { alert(`Không xoá được: ${err.message}`); }
 }
 
@@ -1416,11 +1427,14 @@ function photoLinkedTo(p, kind, id) {
 }
 function filteredPhotos() {
   const q = $('photoSearch').value.trim().toLocaleLowerCase('vi');
+  const matchingAlbumIds = new Set(library.albums.filter(albumMatchesFilters).map(a => a.id));
   return photoState.all.filter(p => {
     const date = (library.albums.find(a => a.id === activeAlbum)?.album_month || p.taken || '').slice(0, 10);
     if (activeAlbum && !library.albumPhotos.some(ap => ap.album_id === activeAlbum && ap.photo_id === p.id)) return false;
-    const locationNames = library.links.filter(l => l.photo_id === p.id && l.kind === 'location').map(l => library.locations.find(x => x.id === l.target_id)?.name || '').join(' ');
-    return (!$('photoYear').value || date.slice(0,4) === $('photoYear').value) && (!$('photoMonth').value || date.slice(5,7) === $('photoMonth').value) &&
+    const locationNames = [...library.links.filter(l => l.photo_id === p.id && l.kind === 'location').map(l => library.locations.find(x => x.id === l.target_id)?.name || ''), ...library.albumPhotos.filter(ap => ap.photo_id === p.id).map(ap => { const a = library.albums.find(x => x.id === ap.album_id); return `${a?.title || ''} ${library.locations.find(x => x.id === a?.location_id)?.name || ''}`; })].join(' ');
+    const dateMatches = (!$('photoYear').value || date.slice(0,4) === $('photoYear').value) && (!$('photoMonth').value || date.slice(5,7) === $('photoMonth').value);
+    const albumDateMatches = !activeAlbum && library.albumPhotos.some(ap => ap.photo_id === p.id && matchingAlbumIds.has(ap.album_id));
+    return (dateMatches || albumDateMatches) &&
       photoLinkedTo(p,'event',$('photoEvent').value) && photoLinkedTo(p,'trip',$('photoTrip').value) && photoLinkedTo(p,'location',$('photoLocation').value) &&
       (!q || `${p.caption || ''} ${locationNames}`.toLocaleLowerCase('vi').includes(q));
   });
@@ -1431,14 +1445,14 @@ function fillSelect(id, items, placeholder) {
   if ([...el.options].some(x => x.value === old)) el.value = old;
 }
 function updateLibraryFilters() {
-  const years = [...new Set([...photoState.all.map(p => (p.taken || '').slice(0,4)), ...library.trips.map(t => t.start_date.slice(0,4))].filter(Boolean))].sort().reverse();
+  const years = [...new Set([...photoState.all.map(p => (p.taken || '').slice(0,4)), ...library.trips.map(t => t.start_date.slice(0,4)), ...library.albums.map(a => (a.album_month || '').slice(0,4))].filter(Boolean))].sort().reverse();
   fillSelect('photoYear',years.map(y => [y,y]),'Tất cả'); fillSelect('mapYearFilter',years.map(y => [y,y]),'Tất cả các năm');
   fillSelect('photoMonth',Array.from({length:12},(_,i) => [String(i+1).padStart(2,'0'),`Tháng ${i+1}`]),'Tất cả');
   fillSelect('photoEvent',memoryEvents.map(e => [e.id,e.title]),'Tất cả');
   for (const id of ['photoTrip','mapTripFilter']) fillSelect(id,library.trips.map(t => [t.id,t.name]),id === 'photoTrip' ? 'Tất cả' : 'Tất cả chuyến đi');
   fillSelect('photoLocation',library.locations.map(l => [l.id,l.name]),'Tất cả');
 }
-for (const id of ['photoSearch','photoYear','photoMonth','photoEvent','photoTrip','photoLocation']) $(id).addEventListener('input',() => { activeMonth = null; render(); $('albumFilterStatus').textContent = `${photoState.list.length} ảnh phù hợp`; });
+for (const id of ['photoSearch','photoYear','photoMonth','photoEvent','photoTrip','photoLocation']) $(id).addEventListener('input',() => { activeMonth = null; activeAlbum = ''; renderAlbums(); render(); $('albumFilterStatus').textContent = `${photoState.list.length} ảnh phù hợp`; });
 for (const id of ['mapTripFilter','mapYearFilter']) $(id).addEventListener('change',renderTrips);
 function openAlbum(kind,id) {
   activeAlbum = ''; renderAlbums();
@@ -1580,7 +1594,7 @@ async function deleteLibrary(type,id) {
   if(!confirm(type==='trip'?'Xoá chuyến đi và các địa điểm? Ảnh vẫn được giữ trong album.':`Xoá ${type==='letter'?'thư':'địa điểm'} này? Ảnh liên quan vẫn được giữ trong album.`)) return;
   try { await libraryPost({type,id,action:'delete'}); $('libraryDetailDialog').close(); await loadLibrary(); } catch(err) { alert(err.message); }
 }
-function openPhotoLinks(kind,id) { linkTarget={kind,id}; $('linkedUpload').multiple = kind !== 'cover'; $('photoLinkStatus').textContent=''; renderPhotoLinks(); $('photoLinkDialog').showModal(); }
+function openPhotoLinks(kind,id) { linkTarget={kind,id}; $('linkedUpload').multiple = kind !== 'cover'; $('photoLinkHelp').textContent = kind === 'cover' ? 'Chọn một ảnh có sẵn hoặc tải ảnh mới làm avatar sự kiện.' : kind === 'album' ? 'Chọn ảnh có sẵn hoặc tải thêm ảnh vào album này.' : 'Chọn ảnh có sẵn hoặc tải ảnh mới để liên kết.'; $('photoLinkStatus').textContent=''; renderPhotoLinks(); $('photoLinkDialog').showModal(); }
 function renderPhotoLinks() {
   const grid=$('photoLinkGrid'); grid.replaceChildren();
   for(const p of photoState.all) {
@@ -1605,9 +1619,10 @@ function sourceName(l) {
   if(l.kind==='trip') return library.trips.find(t=>t.id===l.target_id)?.name;
   return library.locations.find(x=>x.id===l.target_id)?.name;
 }
-function photoUsage(photos) { const ids=new Set(photos.map(p=>p.id)); const names=[...new Set(library.links.filter(l=>ids.has(l.photo_id)).map(sourceName).filter(Boolean))]; return names.length?`Ảnh đang dùng tại: ${names.join(', ')}.`:'Ảnh không có liên kết nào.'; }
+function photoUsage(photos) { const ids=new Set(photos.map(p=>p.id)); const names=[...new Set([...library.links.filter(l=>ids.has(l.photo_id)).map(sourceName), ...library.albumPhotos.filter(ap=>ids.has(ap.photo_id)).map(ap=>library.albums.find(a=>a.id===ap.album_id)?.title)].filter(Boolean))]; return names.length?`Ảnh đang dùng tại: ${names.join(', ')}.`:'Ảnh không có liên kết nào.'; }
 function renderPhotoSources(photo) {
   const box=$('photoSources'); box.replaceChildren();
+  for (const ap of library.albumPhotos.filter(ap=>ap.photo_id===photo.id)) { const album=library.albums.find(a=>a.id===ap.album_id); if (album) box.append(memoryButton(`Album: ${album.title}`,()=>{ lb.close(); selectAlbum(album.id); })); }
   for(const l of library.links.filter(l=>l.photo_id===photo.id)) {
     const name=sourceName(l); if(!name) continue;
     box.append(memoryButton(name,()=>{ lb.close(); if(l.kind==='event'||l.kind==='diary') { const id=l.kind==='event'?l.target_id:memoryDiaries.find(d=>d.id===l.target_id)?.event_id; activeEvent=id; renderEvent(id); if(!$('eventDialog').open) $('eventDialog').showModal(); } else if(l.kind==='trip') openTrip(l.target_id); else openLocation(l.target_id); }));
@@ -1649,23 +1664,36 @@ $('assetFile').addEventListener('change',async e=>{
 
 function memoryPhotoStrip(kind,id) {
   const strip=node('div',null,'memory-photo-strip');
-  const photos=photoState.all.filter(p => library.links.some(l=>l.photo_id===p.id && l.kind===kind && l.target_id===id) || library.albumPhotos.some(ap=>ap.photo_id===p.id && library.albums.some(a=>a.id===ap.album_id && a[`${kind}_id`]===id)));
+  const photos=photoState.all.filter(p => photoLinkedTo(p,kind,id));
   for(const photo of photos.slice(0,12)) {
-    const button=memoryButton('',()=>{ for(const key of ['photoYear','photoMonth','photoEvent','photoTrip','photoLocation','photoSearch']) $(key).value=''; render(); const index=photoState.list.findIndex(p=>p.id===photo.id); if(index>=0) openLightbox(index); },'memory-photo-button');
+    const button=memoryButton('',()=>{ activeAlbum=''; renderAlbums(); for(const key of ['photoYear','photoMonth','photoEvent','photoTrip','photoLocation','photoSearch']) $(key).value=''; render(); const index=photoState.list.findIndex(p=>p.id===photo.id); if(index>=0) openLightbox(index); },'memory-photo-button');
     const img=document.createElement('img'); img.src=media(`thumb/${photo.id}.webp`); img.alt=photo.caption || 'Ảnh kỷ niệm'; img.loading='lazy'; button.append(img); strip.append(button);
   }
   return strip;
 }
 
 /* Album giữ liên kết tới ảnh trong thư viện, không sao chép tệp. */
+function albumMatchesFilters(a) {
+  const year=$('photoYear').value, month=$('photoMonth').value, event=$('photoEvent').value, trip=$('photoTrip').value, location=$('photoLocation').value;
+  const diary=memoryDiaries.find(d=>d.id===a.diary_id), place=library.locations.find(l=>l.id===a.location_id);
+  const query=$('photoSearch').value.trim().toLocaleLowerCase('vi');
+  const members=library.albumPhotos.filter(ap=>ap.album_id===a.id);
+  const photoText=members.map(ap=>photoState.all.find(p=>p.id===ap.photo_id)?.caption || '').join(' ');
+  return (!year || (a.album_month || '').slice(0,4)===year) && (!month || (a.album_month || '').slice(5,7)===month) &&
+    (!event || a.event_id===event || diary?.event_id===event) && (!trip || a.trip_id===trip || place?.trip_id===trip) &&
+    (!location || a.location_id===location) && (!query || `${a.title} ${place?.name || ''} ${photoText}`.toLocaleLowerCase('vi').includes(query));
+}
 function renderAlbums() {
   const list = $('albumList'); list.replaceChildren();
-  for (const a of library.albums) {
-    const count = library.albumPhotos.filter(p => p.album_id === a.id).length;
+  const allButton=memoryButton('Tất cả ảnh',()=>{ activeAlbum=''; activeMonth=null; renderAlbums(); render(); },'chip');
+  allButton.classList.toggle('active',!activeAlbum); list.append(allButton);
+  const albums=library.albums.filter(albumMatchesFilters);
+  for (const a of albums) {
+    const count = library.albumPhotos.filter(p => p.album_id === a.id && photoState.all.some(photo=>photo.id===p.photo_id)).length;
     const button = memoryButton(`${a.title} · ${count} ảnh`, () => selectAlbum(a.id), 'chip');
     button.classList.toggle('active', activeAlbum === a.id); list.append(button);
   }
-  if (!library.albums.length) list.append(node('p','Chưa có album. Hãy tạo album đầu tiên.','muted'));
+  if (!albums.length) list.append(node('p',library.albums.length?'Không có album phù hợp.':'Chưa có album. Hãy tạo album đầu tiên.','muted'));
   const actions=$('albumActions'); actions.replaceChildren(); actions.hidden=!activeAlbum;
   const album=library.albums.find(a=>a.id===activeAlbum);
   if (album) actions.append(memoryButton('＋ Thêm / quản lý ảnh',()=>openPhotoLinks('album',album.id),'btn btn-sm'),memoryButton('Sửa album',()=>openAlbumForm(album)),memoryButton('Xoá album',()=>deleteAlbum(album.id),'link danger'));
