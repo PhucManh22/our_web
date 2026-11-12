@@ -1433,11 +1433,46 @@ function openTrip(id) {
   actions.append(memoryButton('Album chuyến đi',()=>openAlbum('trip',t.id)),memoryButton('Ảnh chuyến đi',()=>openPhotoLinks('trip',t.id)),memoryButton('Sửa',()=>openLibraryForm('trip',t)),memoryButton('Xoá',()=>deleteLibrary('trip',t.id),'link danger'));
   const event=memoryEvents.find(e=>e.id===t.event_id);
   if(event) actions.append(memoryButton(`Sự kiện: ${event.title}`,()=>{ $('libraryDetailDialog').close(); activeEvent=event.id; renderEvent(event.id); if (!$('eventDialog').open) $('eventDialog').showModal(); }));
-  box.append(actions,node('h3','Các địa điểm'),memoryButton('＋ Thêm địa điểm',()=>openLibraryForm('location',{trip_id:t.id}),'btn btn-sm'));
+  box.append(actions);
+  renderTripAlbums(box,t);
+  box.append(node('h3','Các địa điểm'),memoryButton('＋ Thêm địa điểm',()=>openLibraryForm('location',{trip_id:t.id}),'btn btn-sm'));
   const locations=library.locations.filter(l=>l.trip_id===t.id);
   if(!locations.length) box.append(node('p','Chưa có địa điểm nào.','muted'));
   for(const loc of locations) { const el=node('div',null,'diary-entry'); el.append(node('h4',loc.name),node('p',loc.address,'muted'),memoryButton('Xem địa điểm →',()=>openLocation(loc.id))); box.append(el); }
   detailOpen();
+}
+function renderTripAlbums(box, trip) {
+  const section = node('section', null, 'trip-albums');
+  section.append(node('h3', 'Album kỷ niệm'));
+  const linked = library.albums.filter(a => a.trip_id === trip.id);
+  if (!linked.length) section.append(node('p', 'Chuyến đi chưa có album liên kết.', 'muted'));
+  for (const album of linked) {
+    const row = node('div', null, 'trip-album-row');
+    const count = library.albumPhotos.filter(ap => ap.album_id === album.id).length;
+    row.append(node('span', `${album.title} · ${count} ảnh`), memoryButton('Xem album', () => selectAlbum(album.id)),
+      memoryButton('Gỡ liên kết', async () => {
+        try { await libraryPost({ ...album, type:'album', action:'save', trip_id:'' }); await loadLibrary(); openTrip(trip.id); }
+        catch (err) { status.textContent = `Không gỡ được liên kết: ${err.message}`; }
+      }));
+    section.append(row);
+  }
+  const available = library.albums.filter(a => !a.trip_id);
+  const form = node('form', null, 'trip-album-form');
+  const label = node('label', 'Chọn album có sẵn');
+  const select = document.createElement('select'); select.setAttribute('aria-label', 'Chọn album liên kết với chuyến đi');
+  select.add(new Option(available.length ? 'Chọn album' : 'Không có album chưa liên kết', ''));
+  for (const album of available) select.add(new Option(album.title, album.id));
+  select.required = true; select.disabled = !available.length;
+  const submit = node('button', 'Liên kết album', 'btn btn-sm'); submit.type = 'submit'; submit.disabled = !available.length;
+  const status = node('p', '', 'muted'); status.setAttribute('role', 'status');
+  label.append(select); form.append(label, submit); section.append(form, status); box.append(section);
+  form.addEventListener('submit', async e => {
+    e.preventDefault(); const album = library.albums.find(a => a.id === select.value && !a.trip_id);
+    if (!album) { status.textContent = 'Album không còn khả dụng. Hãy tải lại trang.'; return; }
+    submit.disabled = true; status.textContent = 'Đang liên kết…';
+    try { await libraryPost({ ...album, type:'album', action:'save', trip_id:trip.id }); await loadLibrary(); openTrip(trip.id); }
+    catch (err) { status.textContent = `Không liên kết được album: ${err.message}`; submit.disabled = false; }
+  });
 }
 function openLocation(id) {
   const loc=library.locations.find(x=>x.id===id); if(!loc) return;

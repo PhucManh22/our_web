@@ -939,3 +939,9 @@ body { background-attachment:scroll; }
 .diary-album-option input { width:auto; }
 
 @media (max-width: 520px) { #photos .section-head { flex-wrap: wrap; } }
+
+.trip-albums { margin: 22px 0; }
+.trip-album-row, .trip-album-form { display:flex; flex-wrap:wrap; align-items:end; gap:12px; margin:12px 0; }
+.trip-album-row span { flex:1 1 180px; overflow-wrap:anywhere; }
+.trip-album-form label { flex:1 1 200px; display:grid; gap:6px; }
+.trip-album-form select { width:100%; padding:10px; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); }
