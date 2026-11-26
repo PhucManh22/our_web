@@ -27,6 +27,8 @@ npm run dev                 # http://localhost:8788
 
 Android cần Android Studio, Android SDK và JDK 21; mở project bằng `npx cap open android` rồi build và kiểm tra trên emulator hoặc thiết bị. iOS cần macOS, Xcode và cấu hình ký ứng dụng; chạy `npx cap open ios` trên máy Mac. Project native được tạo từ Capacitor chưa đồng nghĩa đã có APK hoặc IPA được kiểm thử.
 
+GitHub Actions `.github/workflows/ios-build.yml` build iOS trên macOS và tải artifact **chưa ký**; artifact này không cài trực tiếp lên iPhone. IPA có chữ ký đang pending vì chủ repo chưa có Apple Developer Program; không cần tài khoản này để dùng PWA.
+
 ## Cài website lên iPhone
 
 Mở website bằng Safari, chọn nút Chia sẻ → **Thêm vào MH chính** → **Thêm**. Nếu iOS hiển thị tùy chọn **Mở dưới dạng ứng dụng**, hãy bật tùy chọn đó. Mở từ biểu tượng trên màn hình chính để dùng điều hướng từng màn hình. Phiên đăng nhập của web app có thể tách biệt với Safari, nên cần đăng nhập lại.
@@ -37,11 +39,11 @@ Web app cần Internet để đăng nhập và tải ảnh; service worker khôn
 
 1. **Đăng nhập:** `npx wrangler login`
 2. **Bật R2:** dashboard Cloudflare → R2 Object Storage → bật R2 (gói free 10 GB, có thể hỏi thẻ nhưng không tính phí nếu không vượt).
-3. **Tạo bucket + cho phép đọc công khai:**
+3. **Tạo bucket riêng tư:**
    ```bash
    npx wrangler r2 bucket create our-web-media
    ```
-   Dashboard → R2 → `our-web-media` → Settings → *Public access* → bật **r2.dev subdomain** (hoặc gắn custom domain — nhanh hơn nhờ CDN cache). Chép URL dạng `https://pub-xxxx.r2.dev` vào `public/config.js` (`mediaBase`).
+   Giữ Public Development URL và các custom domain công khai ở trạng thái tắt. Ảnh được truy cập qua `/api/media` có xác thực; cấu hình binding `MEDIA` trong `wrangler.toml`.
 4. **Upload ảnh** (chạy lại được, bỏ qua file đã xong):
    ```bash
    npm run photos:optimize

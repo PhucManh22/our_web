@@ -156,7 +156,7 @@ Website lưu giữ kỷ niệm của hai vợ chồng. Frontend ở **GitHub Pag
 ```
 phucmanh22.github.io/our_web/   giao diện (GitHub Actions deploy thư mục public/)
 our-web.pages.dev/api/*         API (Cloudflare Pages Functions, CORS cho github.io)
-pub-…r2.dev                     ảnh/nhạc (R2, bucket our-web-media)
+our-web.pages.dev/api/media     ảnh/nhạc có xác thực (R2, bucket our-web-media private)
 ```
 
 | Hạng mục | Lựa chọn | Ghi chú |
@@ -174,7 +174,7 @@ pub-…r2.dev                     ảnh/nhạc (R2, bucket our-web-media)
 * **KHÔNG commit ảnh/nhạc vào git.** Ảnh gốc cũ đã nằm trên R2 (`original/`); thêm ảnh mới bằng nút **＋ Thêm ảnh** trên web (ngày ảnh = ngày upload) hoặc `npm run photos:optimize` → `npm run photos:upload`.
 * `public/photos.json` là ảnh cũ, **sinh ra** bởi script; chỉnh ngày/chú thích ở `public/photo-meta.json` (`defaultDate` áp cho ảnh không có ngày). Ảnh upload từ web nằm trong D1, không trong `photos.json`.
 * Xoá ảnh cũ từ giao diện: xoá object R2 + ghi id vào `deleted_photos` (web ẩn khỏi `photos.json`); xoá ảnh upload: xoá R2 + dòng `photos`. Xoá là vĩnh viễn.
-* Màn khoá chỉ chặn giao diện; file tĩnh trên github.io và ảnh trên R2 vẫn công khai nếu biết đường dẫn. Khoá thật cần R2 private + phục vụ ảnh qua Function.
+* File frontend trên github.io vẫn công khai. Bucket ảnh `our-web-media` đã tắt Public Development URL; ảnh/nhạc được tải qua `/api/media` sau khi xác thực. URL từng công khai hoặc bản sao đã tải trước đây không thể thu hồi bằng cách tắt URL.
 * Mật khẩu/secret không nằm trong code client. Render nội dung người dùng bằng `textContent`, không `innerHTML`.
 * HEIC: chuyển sang JPEG ngay trên trình duyệt (`public/vendor/heic2any`, tải lười); chuyển từng file một vì thư viện không an toàn khi gọi song song.
 * Dev local: `npm run db:migrate:local` → `npm run dev` (web `:8788`, media `:8790`); ảnh upload khi dev nằm trong R2 giả lập nên không hiện trên media server local.
@@ -182,6 +182,20 @@ pub-…r2.dev                     ảnh/nhạc (R2, bucket our-web-media)
 ---
 
 ## 9. NHẬT KÝ CÔNG VIỆC
+
+### 2026-11-26 — Ảnh private, giao diện mobile và iOS đang pending
+
+**Trạng thái hiện tại:**
+* Chủ repo đã tắt Public Development URL của `our-web-media`; khi kiểm tra dashboard không thấy custom domain. `/api/media` kiểm tra session, đọc qua R2 binding `MEDIA`; frontend tải ảnh/nhạc bằng Bearer token và blob URL. Backend đã triển khai, chủ repo xác nhận xem được ảnh. `PRIVATE_MEDIA` là bucket riêng cho tệp đính kèm, không nhầm với bucket ảnh. URL cũ từng công khai có thể đã bị sao chép.
+* Giao diện web lấy cảm hứng từ prototype Gemini `/home/phucmanh/Downloads/ch_ng_m_nh_interactive_ui_ux_prototype.html`; đó là bản mô phỏng, không phải nguồn dữ liệu thật. App native và PWA chạy standalone dùng điều hướng từng màn (trang chủ, sự kiện, bản đồ, album, thư và cài đặt), website trong browser vẫn cuộn theo trang. Giao diện bên trong từng màn chưa giống hoàn toàn prototype.
+* PWA đã được phát hành ở GitHub Pages: `public/manifest.webmanifest`, biểu tượng `public/icons/`, `sw.js` không cache nội dung riêng tư. Trên iPhone: Safari → Chia sẻ → Thêm vào MH chính → bật Mở dưới dạng ứng dụng nếu có. Cần Internet; chưa kiểm thử trực tiếp trên iPhone.
+* Capacitor 8 có project `android/` và `ios/`, dùng giao diện `public/`. CORS cho Android `https://localhost` và iOS `capacitor://localhost` đã triển khai. Chạy `npm run mobile:sync` khi sửa giao diện. Skill Codex riêng: `~/.codex/skills/our-web-mobile-app/SKILL.md`.
+* Android: đã cài JDK 21, Android SDK và emulator trong `.build/mobile-tools/` (không commit); APK debug tại `~/Downloads/chung-minh-debug.apk`, được build lại sau khi sửa điều hướng. Bản trước đã cài/mở trên emulator và thử mật khẩu sai; điều hướng mới kiểm thử bằng browser mô phỏng và đã mở lại trong emulator. Chưa xác nhận đăng nhập thành công hay ảnh thật trong app Android; không phải bản phát hành Google Play.
+* iOS: GitHub Actions `.github/workflows/ios-build.yml` dùng `macos-26`, `npm ci`, `npx cap sync ios` và Xcode build không ký. Lần chạy `45749954519` thành công; artifact `ios-unsigned-build` giữ 7 ngày và **không cài trực tiếp được lên iPhone**. Máy hiện tại là Linux, không có Xcode; mã nguồn handoff tại `~/Downloads/chung-minh-ios-source.zip` có thể cũ hơn code hiện tại.
+* **IPA iOS pending theo yêu cầu chủ repo:** chủ repo không có Mac và chưa có Apple Developer Program trả phí. Chưa có certificate, provisioning profile hoặc IPA đã ký. Chỉ tiếp tục khi người dùng yêu cầu và cung cấp điều kiện ký phù hợp; không yêu cầu gửi mật khẩu/chứng chỉ qua chat. Trước mắt khuyến nghị PWA.
+* `npm run photos:optimize` vẫn cần ảnh gốc local. Dev local dùng R2 giả lập, không tự hiện ảnh production. Chỉ commit/push hoặc deploy khi người dùng yêu cầu.
+
+Nhật ký bên dưới là lịch sử tại thời điểm ghi, không phải trạng thái hiện tại; các ghi chú cũ về bucket public và ảnh private chưa làm đã được thay thế bởi mục 2026-11-26 ở trên.
 
 ### 2026-10-29 — Làm lại toàn bộ project (ảnh lên cloud, giao diện mới, backend Cloudflare)
 
