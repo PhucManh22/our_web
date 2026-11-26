@@ -19,7 +19,7 @@ npm run db:migrate:local
 npm run dev                 # http://localhost:8788
 ```
 
-Clone máy mới (không có ảnh gốc) vẫn chạy được phần giao diện/ghi chú; ảnh lấy từ R2 khi đã cấu hình `mediaBase`.
+Ảnh và nhạc được tải qua `/api/media` sau khi đăng nhập, sử dụng binding R2 `MEDIA`. Khi chạy local, binding này dùng R2 giả lập riêng; ảnh production không tự xuất hiện ở local.
 
 ## Triển khai lần đầu (Cloudflare free)
 
@@ -71,7 +71,7 @@ Bản phát triển mở rộng dùng các migration `0005`–`0007`: sự kiệ
 
 Trước khi triển khai API mới cần tạo bucket R2 riêng tư `our-web-private-media`, áp dụng migration D1 và triển khai Pages Functions. Đây là thao tác trên hạ tầng thật; các thay đổi trong repo không tự tạo bucket hay áp dụng migration production.
 
-**Giới hạn riêng tư hiện tại:** ảnh cũ và ảnh upload qua chức năng ảnh vẫn nằm trong bucket `our-web-media` công khai. Màn đăng nhập không bảo vệ URL của các ảnh đó. Để đáp ứng yêu cầu ảnh riêng tư cần chuyển toàn bộ ảnh sang bucket private, thay cách truy cập ảnh bằng API có xác thực và tắt public access sau khi kiểm tra dữ liệu; chưa thực hiện chuyển đổi này.
+**Ảnh riêng tư:** triển khai Pages Function và frontend có `/api/media`, kiểm tra sau đăng nhập rồi tắt Public Development URL và các custom domain công khai của bucket `our-web-media`. Endpoint yêu cầu Bearer token, không cho cache công khai. URL R2 từng công khai có thể đã được người khác lưu hoặc sao chép trước đó. Khi đổi backend và frontend, triển khai backend trước frontend; frontend cũ không hoạt động nếu public access đã bị tắt.
 
 ## Album kỷ niệm
 

@@ -1,6 +1,51 @@
-const { startDate, mediaBase, apiBase, music: musicFile } = window.OUR_WEB;
+const { startDate, apiBase, music: musicFile } = window.OUR_WEB;
 const $ = (id) => document.getElementById(id);
-const media = (path) => `${mediaBase}/${path}`;
+// Tải media bằng Bearer token: thẻ img/audio không tự gửi Authorization.
+const mediaCache = new Map();
+let mediaGeneration = 0;
+async function media(path) {
+  if (!mediaCache.has(path)) {
+    const generation = mediaGeneration;
+    const pending = fetch(`${apiBase}/api/media?key=${encodeURIComponent(path)}`, {
+      headers: { authorization: `Bearer ${getToken()}` },
+      cache: 'no-store',
+    }).then(async (res) => {
+      if (res.status === 401) { setToken(''); showLock('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'); }
+      if (!res.ok) throw new Error(`Không tải được media (${res.status})`);
+      const blob = await res.blob();
+      if (generation !== mediaGeneration) throw new Error('Phiên đã thay đổi');
+      return URL.createObjectURL(blob);
+    }).catch((err) => { if (mediaCache.get(path) === pending) mediaCache.delete(path); throw err; });
+    mediaCache.set(path, pending);
+  }
+  return mediaCache.get(path);
+}
+function setMedia(element, path) {
+  element.dataset.mediaPath = path;
+  if (element.loading === 'lazy' && mediaObserver) {
+    mediaObserver.observe(element);
+    return;
+  }
+  loadMediaElement(element, path);
+}
+function loadMediaElement(element, path) {
+  media(path).then((url) => {
+    if (element.dataset.mediaPath === path) element.src = url;
+  }).catch((err) => console.error(err.message));
+}
+const mediaObserver = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (!entry.isIntersecting) continue;
+    mediaObserver.unobserve(entry.target);
+    loadMediaElement(entry.target, entry.target.dataset.mediaPath);
+  }
+}, { rootMargin: '300px' }) : null;
+function clearMedia() {
+  mediaGeneration++;
+  for (const pending of mediaCache.values()) pending.then(URL.revokeObjectURL).catch(() => {});
+  mediaCache.clear();
+}
+
 const fmtDate = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const fmtDateTime = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -46,7 +91,9 @@ function setMusicUi(playing) {
   musicBtn.setAttribute('aria-label', playing ? 'Tắt nhạc' : 'Bật nhạc');
 }
 musicBtn.addEventListener('click', async () => {
-  if (!music.src) music.src = media(musicFile);
+  if (!music.src) {
+    try { music.src = await media(musicFile); } catch { return; }
+  }
   if (music.paused) {
     try { await music.play(); setMusicUi(true); } catch { return; }
   } else {
@@ -578,7 +625,7 @@ function makeTile(p, index) {
   img.width = p.w; img.height = p.h; img.alt = p.caption || '';
   img.loading = 'lazy'; img.decoding = 'async';
   img.addEventListener('load', () => img.classList.add('loaded'));
-  img.src = media(`thumb/${p.id}.webp`);
+  setMedia(img, `thumb/${p.id}.webp`);
   if (img.complete) img.classList.add('loaded');
   btn.append(img);
   btn.dataset.id = p.id;
@@ -721,9 +768,9 @@ function updatePoolCards(dragShift = 0) {
     node.el.style.zIndex = String(style.zIndex);
     node.el.style.filter = style.filter;
 
-    const thumbSrc = media(`thumb/${p.id}.webp`);
-    if (node.img.src !== thumbSrc && !node.img.src.includes(p.id)) {
-      node.img.src = thumbSrc;
+    const thumbPath = `thumb/${p.id}.webp`;
+    if (node.img.dataset.mediaPath !== thumbPath && node.img.dataset.mediaPath !== `full/${p.id}.webp`) {
+      setMedia(node.img, thumbPath);
     }
 
     node.cap.textContent = p.caption || (p.taken ? fmtDate.format(new Date(p.taken)) : `Ảnh ${virtualIdx + 1}`);
@@ -734,7 +781,7 @@ function updatePoolCards(dragShift = 0) {
     fullUpgradeTimer = setTimeout(() => {
       const centerNode = cfPool.find((n) => n.offset === 0);
       if (centerNode && centerNode.photo) {
-        centerNode.img.src = media(`full/${centerNode.photo.id}.webp`);
+        setMedia(centerNode.img, `full/${centerNode.photo.id}.webp`);
       }
     }, 200);
   }
@@ -993,20 +1040,27 @@ function showPhoto(i) {
   lbIndex = (i + list.length) % list.length;
   const p = list[lbIndex];
   const img = $('lbImg');
-  const fullUrl = media(`full/${p.id}.webp`);
   img.alt = p.caption || '';
-  img.src = media(`thumb/${p.id}.webp`); // hiện bản nhỏ ngay, thay bằng bản lớn khi tải xong
-  const full = new Image();
-  full.onload = () => { if (list[lbIndex] === p) img.src = fullUrl; };
-  full.src = fullUrl;
+  setMedia(img, `thumb/${p.id}.webp`);
+  media(`full/${p.id}.webp`).then((url) => {
+    if (list[lbIndex] === p) { img.dataset.mediaPath = `full/${p.id}.webp`; img.src = url; }
+  }).catch((err) => console.error(err.message));
   const parts = [p.caption, p.taken ? fmtDate.format(new Date(p.taken)) : ''].filter(Boolean);
   $('lbCaption').textContent = parts.join(' · ');
   $('lbCount').textContent = `${lbIndex + 1} / ${list.length}`;
-  $('lbOriginal').href = media(`original/${encodeURIComponent(p.original)}`);
+  $('lbOriginal').dataset.original = p.original;
   $('lbDelete').hidden = false;
   renderPhotoSources(p);
-  [1, -1].forEach((d) => { new Image().src = media(`full/${list[(lbIndex + d + list.length) % list.length].id}.webp`); });
 }
+
+$('lbOriginal').addEventListener('click', async (event) => {
+  event.preventDefault();
+  try {
+    const url = await media(`original/${$('lbOriginal').dataset.original}`);
+    const link = document.createElement('a');
+    link.href = url; link.download = $('lbOriginal').dataset.original; link.click();
+  } catch { alert('Không tải được ảnh gốc. Vui lòng thử lại.'); }
+});
 
 function openLightbox(i) {
   showPhoto(i);
@@ -1174,7 +1228,7 @@ async function enter() {
   document.body.classList.remove('locked');
   if (entered) return;
   entered = true;
-  $('hero').style.backgroundImage = `url("${media('hero.webp')}")`;
+  media('hero.webp').then((url) => { $('hero').style.backgroundImage = `url("${url}")`; }).catch((err) => console.error(err.message));
   await loadPhotos();
   await loadMemories();
   await loadLibrary();
@@ -1212,7 +1266,7 @@ $('loginForm').addEventListener('submit', async (e) => {
   } finally { btn.disabled = false; }
 });
 
-$('logoutBtn').addEventListener('click', () => { setToken(''); location.reload(); });
+$('logoutBtn').addEventListener('click', () => { clearMedia(); setToken(''); location.reload(); });
 
 const pwDialog = $('pwDialog');
 $('changePwBtn').addEventListener('click', () => { $('pwForm').reset(); showError($('pwError'), ''); pwDialog.showModal(); });
@@ -1223,6 +1277,7 @@ $('pwForm').addEventListener('submit', async (e) => {
   $('pwSave').disabled = true; showError($('pwError'), '');
   try {
     const { token } = await authApi('change', { current: $('pwCurrent').value, next: $('pwNext').value });
+    clearMedia();
     setToken(token);
     pwDialog.close();
     alert('Đã đổi mật khẩu 💕');
@@ -1263,7 +1318,7 @@ function renderTimeline() {
     const card = node('article', null, 'timeline-card');
     const image = document.createElement('img'); image.alt = ''; image.loading = 'lazy';
     const linked = event.cover_photo_id ? {photo_id:event.cover_photo_id} : library.links.find(l => l.kind === 'event' && l.target_id === event.id);
-    image.src = linked ? media(`thumb/${linked.photo_id}.webp`) : media('hero.webp');
+    setMedia(image, linked ? `thumb/${linked.photo_id}.webp` : 'hero.webp');
     const frame = node('div', null, 'timeline-photo'); frame.append(image);
     card.append(frame, node('h3', event.title), node('p', event.description, 'muted'), node('p', displayDate(event.event_date), 'memory-date'));
     card.append(memoryButton('Xem kỷ niệm →', () => { activeEvent = event.id; renderEvent(event.id); $('eventDialog').showModal(); }));
@@ -1288,7 +1343,7 @@ function renderEvent(id) {
   const cover = node('div', null, 'event-cover');
   const image = document.createElement('img'); image.alt = 'Ảnh kỷ niệm';
   const linked = event.cover_photo_id ? {photo_id:event.cover_photo_id} : library.links.find(l => l.kind === 'event' && l.target_id === event.id);
-  image.src = linked ? media(`full/${linked.photo_id}.webp`) : media('hero.webp');
+  setMedia(image, linked ? `full/${linked.photo_id}.webp` : 'hero.webp');
   cover.append(image, node('p', 'Together forever ♡'));
   const center = node('div', null, 'event-detail-center');
   const title = node('h2', `${event.title} ♡`); title.id = 'eventDetailTitle';
@@ -1595,7 +1650,7 @@ function renderPhotoLinks() {
     input.type = linkTarget.kind === 'cover' ? 'radio' : 'checkbox'; input.name = linkTarget.kind === 'cover' ? 'event-cover' : '';
     input.checked=linkTarget.kind === 'album' ? library.albumPhotos.some(l=>l.photo_id===p.id && l.album_id===linkTarget.id) : linkTarget.kind === 'cover' ? memoryEvents.find(e=>e.id===linkTarget.id)?.cover_photo_id === p.id : library.links.some(l=>l.photo_id===p.id && l.kind===linkTarget.kind && l.target_id===linkTarget.id);
     input.setAttribute('aria-label',p.caption || `Ảnh ${p.id}`);
-    const img=document.createElement('img'); img.loading='lazy'; img.src=media(`thumb/${p.id}.webp`); img.alt=p.caption || '';
+    const img=document.createElement('img'); img.loading='lazy'; setMedia(img, `thumb/${p.id}.webp`); img.alt=p.caption || '';
     input.addEventListener('change',async()=>{ input.disabled=true; try { if (linkTarget.kind === 'cover') { await libraryPost({type:'cover',event_id:linkTarget.id,photo_id:p.id}); await loadMemories(); } else if (linkTarget.kind === 'album') await libraryPost({type:'albumPhoto',album_id:linkTarget.id,photo_id:p.id,action:input.checked?'link':'unlink'}); else await libraryPost({type:'photo',id:p.id,action:input.checked?'link':'unlink',kind:linkTarget.kind,target_id:linkTarget.id}); await loadLibrary(); } catch(err) { input.checked=!input.checked; $('photoLinkStatus').textContent=err.message; } finally { input.disabled=false; } });
     label.append(img,input); grid.append(label);
   }
@@ -1660,7 +1715,7 @@ function memoryPhotoStrip(kind,id) {
   const photos=photoState.all.filter(p => photoLinkedTo(p,kind,id));
   for(const photo of photos.slice(0,12)) {
     const button=memoryButton('',()=>{ photoState.list=photos; const index=photos.indexOf(photo); if(index>=0) openLightbox(index); },'memory-photo-button');
-    const img=document.createElement('img'); img.src=media(`thumb/${photo.id}.webp`); img.alt=photo.caption || 'Ảnh kỷ niệm'; img.loading='lazy'; button.append(img); strip.append(button);
+    const img=document.createElement('img'); setMedia(img, `thumb/${photo.id}.webp`); img.alt=photo.caption || 'Ảnh kỷ niệm'; img.loading='lazy'; button.append(img); strip.append(button);
   }
   return strip;
 }
