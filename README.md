@@ -21,6 +21,12 @@ npm run dev                 # http://localhost:8788
 
 Ảnh và nhạc được tải qua `/api/media` sau khi đăng nhập, sử dụng binding R2 `MEDIA`. Khi chạy local, binding này dùng R2 giả lập riêng; ảnh production không tự xuất hiện ở local.
 
+## Project mobile (Capacitor)
+
+`android/` và `ios/` dùng chung giao diện trong `public/` và API Cloudflare. Sau khi sửa giao diện, chạy `npx cap sync` để cập nhật mã web vào hai project native. API production cần triển khai thay đổi CORS trong `functions/_shared/http.js` trước khi app có thể đăng nhập từ WebView.
+
+Android cần Android Studio, Android SDK và JDK 21; mở project bằng `npx cap open android` rồi build và kiểm tra trên emulator hoặc thiết bị. iOS cần macOS, Xcode và cấu hình ký ứng dụng; chạy `npx cap open ios` trên máy Mac. Project native được tạo từ Capacitor chưa đồng nghĩa đã có APK hoặc IPA được kiểm thử.
+
 ## Triển khai lần đầu (Cloudflare free)
 
 1. **Đăng nhập:** `npx wrangler login`

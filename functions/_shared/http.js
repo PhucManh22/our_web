@@ -6,6 +6,8 @@ export const ALLOWED_ORIGINS = new Set([
   'https://phucmanh22.github.io',
   'https://our-web.pages.dev',
   'http://localhost:8788',
+  'https://localhost', // Android Capacitor WebView
+  'capacitor://localhost', // iOS Capacitor WebView
 ]);
 
 export function corsHeaders(request) {

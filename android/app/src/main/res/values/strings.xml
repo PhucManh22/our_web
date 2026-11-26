@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Chúng mình</string>
+    <string name="title_activity_main">Chúng mình</string>
+    <string name="package_name">vn.chungminh.app</string>
+    <string name="custom_url_scheme">vn.chungminh.app</string>
+</resources>
