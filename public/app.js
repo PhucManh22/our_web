@@ -55,6 +55,19 @@ const onScroll = () => topbar.classList.toggle('solid', scrollY > innerHeight * 
 addEventListener('scroll', onScroll, { passive: true });
 onScroll();
 $('year').textContent = new Date().getFullYear();
+const navigationLinks = [...document.querySelectorAll('.topbar nav a[href^="#"]')];
+if ('IntersectionObserver' in window) {
+  const sections = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      for (const link of navigationLinks) {
+        if (link.hash === `#${entry.target.id}` || (entry.target.id === 'hero' && link.hash === '#top')) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      }
+    }
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  for (const id of ['hero', 'timeline', 'mapSection', 'photos', 'notes']) sections.observe($(id));
+}
 
 /* ---------- Đồng hồ ngày yêu ---------- */
 function tick() {
