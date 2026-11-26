@@ -7,6 +7,11 @@
   <meta name="description" content="Nơi hai vợ chồng lưu giữ kỷ niệm.">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#140d10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Chúng mình">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,6 +34,7 @@
 
   <header class="topbar">
     <a class="brand" href="#top"><span class="brand-heart" aria-hidden="true">♥</span><span>Chúng mình<small>Album riêng tư</small></span></a>
+    <button id="appSettingsBtn" class="app-settings-button" type="button" aria-label="Cài đặt">⚙</button>
     <nav aria-label="Điều hướng">
       <a href="#top"><span class="nav-icon" aria-hidden="true">⌂</span><span>Trang chủ</span></a>
       <a href="#timeline"><span class="nav-icon" aria-hidden="true">♡</span><span>Những ngày đặc biệt</span></a>
@@ -202,6 +208,14 @@
       </details>
     </section>
   </main>
+
+  <section class="app-settings section" id="appSettings" aria-labelledby="appSettingsTitle">
+    <div class="app-settings-heading"><button id="appSettingsBack" class="link" type="button" aria-label="Quay lại">‹</button><div><h2 id="appSettingsTitle">Cài đặt</h2><p class="muted">Tùy chỉnh trải nghiệm và bảo mật</p></div></div>
+    <button class="app-setting-row" id="appSettingsMusic" type="button" aria-pressed="false"><span><strong>Nhạc nền dịu nhẹ</strong><small>Phát nhạc khi xem album</small></span><span id="appMusicState">Tắt</span></button>
+    <button class="app-setting-row" id="appSettingsPassword" type="button"><span><strong>Đổi mật khẩu</strong><small>Cập nhật mật khẩu mở khóa</small></span><span aria-hidden="true">›</span></button>
+    <div class="app-settings-info"><p><span>Ứng dụng</span><strong>Chúng mình</strong></p><p><span>Nền tảng dữ liệu</span><strong>Cloudflare API</strong></p></div>
+    <button class="app-settings-logout" id="appSettingsLogout" type="button">Đăng xuất khỏi thiết bị này</button>
+  </section>
 
   <footer class="footer muted small center">
     Làm bằng tình yêu · <span id="year"></span><br>

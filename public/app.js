@@ -1,5 +1,11 @@
 const { startDate, apiBase, music: musicFile } = window.OUR_WEB;
 const $ = (id) => document.getElementById(id);
+const isNativeApp = window.Capacitor?.isNativePlatform?.() === true || location.protocol === 'capacitor:' || (location.hostname === 'localhost' && location.protocol === 'https:');
+const isAppShell = isNativeApp || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+if (isAppShell) document.body.classList.add('native-app');
+if (!isNativeApp && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  navigator.serviceWorker.register('sw.js').catch((error) => console.warn('Không đăng ký được service worker:', error));
+}
 // Tải media bằng Bearer token: thẻ img/audio không tự gửi Authorization.
 const mediaCache = new Map();
 let mediaGeneration = 0;
@@ -56,7 +62,7 @@ addEventListener('scroll', onScroll, { passive: true });
 onScroll();
 $('year').textContent = new Date().getFullYear();
 const navigationLinks = [...document.querySelectorAll('.topbar nav a[href^="#"]')];
-if ('IntersectionObserver' in window) {
+if (!isAppShell && 'IntersectionObserver' in window) {
   const sections = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       if (!entry.isIntersecting) continue;
@@ -67,6 +73,33 @@ if ('IntersectionObserver' in window) {
     }
   }, { rootMargin: '-15% 0px -65% 0px' });
   for (const id of ['hero', 'timeline', 'mapSection', 'photos', 'notes']) sections.observe($(id));
+}
+const appScreenIds = ['hero', 'timeline', 'mapSection', 'photos', 'notes', 'appSettings'];
+let previousAppScreen = 'hero';
+function showAppScreen(id) {
+  if (!isAppShell || !appScreenIds.includes(id)) return;
+  const current = document.querySelector('.app-screen-active')?.id;
+  if (id === 'appSettings' && current && current !== id) previousAppScreen = current;
+  for (const screenId of appScreenIds) $(screenId).classList.toggle('app-screen-active', screenId === id);
+  for (const link of navigationLinks) {
+    const target = link.hash === '#top' ? 'hero' : link.hash.slice(1);
+    if (target === id) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  }
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  if (id === 'mapSection') requestAnimationFrame(() => mapInstance?.invalidateSize());
+}
+if (isAppShell) {
+  showAppScreen('hero');
+  document.querySelectorAll('.topbar a[href^="#"], .scroll-hint').forEach((link) => link.addEventListener('click', (event) => {
+    event.preventDefault();
+    showAppScreen(link.hash === '#top' ? 'hero' : link.hash.slice(1));
+  }));
+  $('appSettingsBtn').addEventListener('click', () => showAppScreen('appSettings'));
+  $('appSettingsBack').addEventListener('click', () => showAppScreen(previousAppScreen));
+  $('appSettingsMusic').addEventListener('click', () => $('musicBtn').click());
+  $('appSettingsPassword').addEventListener('click', () => $('changePwBtn').click());
+  $('appSettingsLogout').addEventListener('click', () => $('logoutBtn').click());
 }
 
 /* ---------- Đồng hồ ngày yêu ---------- */
@@ -102,6 +135,8 @@ function setMusicUi(playing) {
   musicBtn.classList.toggle('playing', playing);
   musicBtn.setAttribute('aria-pressed', String(playing));
   musicBtn.setAttribute('aria-label', playing ? 'Tắt nhạc' : 'Bật nhạc');
+  $('appSettingsMusic').setAttribute('aria-pressed', String(playing));
+  $('appMusicState').textContent = playing ? 'Bật' : 'Tắt';
 }
 musicBtn.addEventListener('click', async () => {
   if (!music.src) {
@@ -1466,7 +1501,7 @@ function openAlbum(kind,id) {
   $(kind === 'trip' ? 'photoTrip' : kind === 'event' ? 'photoEvent' : 'photoLocation').value = id;
   if ($('libraryDetailDialog').open) $('libraryDetailDialog').close();
   if ($('eventDialog').open) $('eventDialog').close();
-  renderAlbums(); render(); $('photos').scrollIntoView();
+  renderAlbums(); render(); if (isAppShell) showAppScreen('photos'); else $('photos').scrollIntoView();
 }
 function renderTrips() {
   const selectedTrip = $('mapTripFilter').value, year = $('mapYearFilter').value;
@@ -1765,7 +1800,7 @@ function selectAlbum(id) {
   activeAlbum=id;
   if ($('eventDialog').open) $('eventDialog').close();
   if ($('libraryDetailDialog').open) $('libraryDetailDialog').close();
-  renderAlbums(); render(); $('photos').scrollIntoView();
+  renderAlbums(); render(); if (isAppShell) showAppScreen('photos'); else $('photos').scrollIntoView();
 }
 function openAlbumForm(item={}) {
   editingAlbum=item.id || ''; const form=$('albumForm'); form.reset(); $('albumError').hidden=true;

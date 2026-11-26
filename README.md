@@ -27,6 +27,12 @@ npm run dev                 # http://localhost:8788
 
 Android cần Android Studio, Android SDK và JDK 21; mở project bằng `npx cap open android` rồi build và kiểm tra trên emulator hoặc thiết bị. iOS cần macOS, Xcode và cấu hình ký ứng dụng; chạy `npx cap open ios` trên máy Mac. Project native được tạo từ Capacitor chưa đồng nghĩa đã có APK hoặc IPA được kiểm thử.
 
+## Cài website lên iPhone
+
+Mở website bằng Safari, chọn nút Chia sẻ → **Thêm vào MH chính** → **Thêm**. Nếu iOS hiển thị tùy chọn **Mở dưới dạng ứng dụng**, hãy bật tùy chọn đó. Mở từ biểu tượng trên màn hình chính để dùng điều hướng từng màn hình. Phiên đăng nhập của web app có thể tách biệt với Safari, nên cần đăng nhập lại.
+
+Web app cần Internet để đăng nhập và tải ảnh; service worker không lưu ảnh hoặc dữ liệu riêng tư để dùng offline. Mỗi lần phát hành, frontend được cập nhật qua GitHub Pages như website.
+
 ## Triển khai lần đầu (Cloudflare free)
 
 1. **Đăng nhập:** `npx wrangler login`
